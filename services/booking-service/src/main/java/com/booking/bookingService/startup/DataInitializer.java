@@ -56,6 +56,8 @@ public class DataInitializer implements CommandLineRunner {
             entityManager.createNativeQuery("TRUNCATE TABLE bus CASCADE").executeUpdate();
             // REMOVED: entityManager.createNativeQuery("TRUNCATE TABLE seat_type CASCADE").executeUpdate();
             entityManager.createNativeQuery("TRUNCATE TABLE operator CASCADE").executeUpdate();
+            entityManager.createNativeQuery("TRUNCATE TABLE booking CASCADE").executeUpdate();
+            entityManager.createNativeQuery("TRUNCATE TABLE passenger CASCADE").executeUpdate();
             entityManager.flush();
         } catch (Exception e) {
             log.warn("Could not truncate tables (might be first run): {}", e.getMessage());
@@ -67,6 +69,8 @@ public class DataInitializer implements CommandLineRunner {
             entityManager.createNativeQuery("DELETE FROM bus").executeUpdate();
             // REMOVED: entityManager.createNativeQuery("DELETE FROM seat_type").executeUpdate();
             entityManager.createNativeQuery("DELETE FROM operator").executeUpdate();
+            entityManager.createNativeQuery("DELETE FROM booking").executeUpdate();
+            entityManager.createNativeQuery("DELETE FROM passenger").executeUpdate();
         }
 
         log.info("All existing data cleared. Initializing new data from JSON file...");

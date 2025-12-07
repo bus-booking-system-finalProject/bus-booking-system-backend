@@ -8,6 +8,9 @@ import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.User;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -19,32 +22,45 @@ import java.util.List;
 public class GatewayAuthenticationFilter extends OncePerRequestFilter {
 
     @Override
-    protected void doFilterInternal(@NonNull HttpServletRequest request,
-                                    @NonNull HttpServletResponse response,
-                                    @NonNull FilterChain filterChain) throws ServletException, IOException {
+    protected void doFilterInternal(
+            @NonNull HttpServletRequest request,
+            @NonNull HttpServletResponse response,
+            @NonNull FilterChain filterChain
+    ) throws ServletException, IOException {
 
-        // 1. Read headers set by the API Gateway
+        // 1. Lấy thông tin từ Header do Gateway truyền sang
         String userEmail = request.getHeader("X-User-Email");
         String userRole = request.getHeader("X-User-Role");
 
-        // 2. If headers are present, create an Authentication object
-        if (userEmail != null && userRole != null) {
-            // Spring Security expects roles to be prefixed with "ROLE_" usually
-            // but we can just add it here to be safe.
-            String roleName = userRole.startsWith("ROLE_") ? userRole : "ROLE_" + userRole;
+        // 2. Chỉ tạo Authentication nếu chưa có và Header hợp lệ
+        if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             
-            SimpleGrantedAuthority authority = new SimpleGrantedAuthority(roleName);
-            List<SimpleGrantedAuthority> authorities = Collections.singletonList(authority);
+            // Xử lý role: Nếu null hoặc rỗng -> gán ROLE_USER mặc định để không lỗi
+            String roleName = (userRole != null && !userRole.isEmpty()) ? userRole : "USER";
+            if (!roleName.startsWith("ROLE_")) {
+                roleName = "ROLE_" + roleName;
+            }
 
-            // Create the authentication token (User is authenticated)
-            UsernamePasswordAuthenticationToken auth = 
-                new UsernamePasswordAuthenticationToken(userEmail, null, authorities);
+            // 3. Tạo UserDetails (Giống logic trong UserController/UserService)
+            // Chúng ta tạo một object User ảo (của Spring Security) vì service này không truy cập bảng User
+            List<SimpleGrantedAuthority> authorities = List.of(new SimpleGrantedAuthority(roleName));
+            
+            // Password để trống vì đã xác thực ở Gateway
+            UserDetails userDetails = new User(userEmail, "", authorities);
 
-            // 3. Set the authentication in the context
-            SecurityContextHolder.getContext().setAuthentication(auth);
+            // 4. Tạo Authentication Token chứa UserDetails
+            UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                    userDetails,
+                    null,
+                    userDetails.getAuthorities()
+            );
+
+            authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+
+            // 5. Set vào Context
+            SecurityContextHolder.getContext().setAuthentication(authToken);
         }
 
-        // 4. Continue the filter chain
         filterChain.doFilter(request, response);
     }
 }

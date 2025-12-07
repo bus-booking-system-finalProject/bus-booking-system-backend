@@ -126,6 +126,8 @@ services:
       timeout: 5s
       retries: 10
     depends_on:
+      redis:
+        condition: service_healthy
       config-server:
         condition: service_healthy
       service-registry:
@@ -133,7 +135,22 @@ services:
       booking-service-db:
         condition: service_healthy
     environment:
+      - SPRING_DATA_REDIS_HOST=redis 
+      - SPRING_DATA_REDIS_PORT=6379
       - SPRING_PROFILES_ACTIVE=docker
+    networks:
+      - booking-network
+
+  redis:
+    image: redis:alpine
+    container_name: booking-redis
+    ports:
+      - "6379:6379"
+    healthcheck: # <--- NEW: Thêm healthcheck để booking-service biết khi nào Redis sẵn sàng
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
     networks:
       - booking-network
     

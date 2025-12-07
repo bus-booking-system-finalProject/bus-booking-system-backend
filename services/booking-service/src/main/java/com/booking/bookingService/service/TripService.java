@@ -28,6 +28,8 @@ public class TripService {
     private final RouteRepository routeRepository;
     private final SeatStatusRepository seatStatusRepository;
 
+    private final RedisLockService redisLockService;
+
     public Trip createTrip(TripRequest request) {
         validateBusAvailability(request.getBusId(), request.getDepartureTime(), request.getArrivalTime(), null);
         Bus bus = busRepository.findById(request.getBusId())
@@ -266,35 +268,48 @@ public class TripService {
         // 1. Get all physical seats
         List<Seat> physicalSeats = seatRepository.findByBusId(trip.getBus().getId());
 
-        // 2. Get current statuses
+        // 2. Get current statuses from DB
         List<SeatStatus> seatStatuses = seatStatusRepository.findByTripId(tripId);
+
+        // [START LAZY UPDATE LOGIC]
+        List<SeatStatus> expiredSeats = new ArrayList<>();
+        boolean hasChanges = false;
+
+        for (SeatStatus status : seatStatuses) {
+            if (status.getState() == SeatStatus.SeatState.LOCKED) {
+                String redisKey = "lock:seat:" + tripId + ":" + status.getSeat().getSeatCode();
+
+                if (!redisLockService.isLocked(redisKey)) {
+                    status.setState(SeatStatus.SeatState.AVAILABLE);
+                    expiredSeats.add(status);
+                    hasChanges = true;
+                }
+            }
+        }
+
+        if (hasChanges) {
+            seatStatusRepository.saveAll(expiredSeats);
+        }
+
         Map<UUID, SeatStatus.SeatState> statusMap = seatStatuses.stream()
                 .collect(Collectors.toMap(
                         s -> s.getSeat().getId(),
                         SeatStatus::getState
                 ));
 
-        // Calculate the grid dimensions by finding the highest row/col/deck in the list
-        int maxRows = physicalSeats.stream()
-                .mapToInt(Seat::getGridRow)
-                .max().orElse(0);
-        
-        int maxCols = physicalSeats.stream()
-                .mapToInt(Seat::getGridCol)
-                .max().orElse(0);
-        
-        int totalDecks = physicalSeats.stream()
-                .mapToInt(Seat::getDeckNumber)
-                .max().orElse(1);
+        // Calculate dimensions
+        int maxRows = physicalSeats.stream().mapToInt(Seat::getGridRow).max().orElse(0);
+        int maxCols = physicalSeats.stream().mapToInt(Seat::getGridCol).max().orElse(0);
+        int totalDecks = physicalSeats.stream().mapToInt(Seat::getDeckNumber).max().orElse(1);
 
         // 3. Map to DTOs
         List<SeatMapResponse.SeatDto> seatDtos = physicalSeats.stream().map(seat -> {
+            // Lấy trạng thái từ map (lúc này map đã chứa dữ liệu sạch - fresh data)
             String status = statusMap.getOrDefault(seat.getId(), SeatStatus.SeatState.AVAILABLE).name().toLowerCase();
             
             return SeatMapResponse.SeatDto.builder()
                     .seatId(seat.getId().toString())
                     .seatCode(seat.getSeatCode())
-                    // Safe check for seat type name
                     .deck(seat.getDeckNumber())
                     .price(trip.getPrice()) 
                     .status(status)
@@ -305,7 +320,6 @@ public class TripService {
 
         return SeatMapResponse.builder()
                 .tripId(tripId)
-                // 4. Set the calculated fields
                 .gridRows(maxRows) 
                 .gridColumns(maxCols)   
                 .totalDecks(totalDecks) 

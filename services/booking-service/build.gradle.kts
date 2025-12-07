@@ -36,6 +36,9 @@ dependencies {
     // --- Google Oauth 2.0 ---
     implementation("org.springframework.boot:spring-boot-starter-oauth2-client")
 
+    // --- Reddis ---
+    implementation("org.springframework.boot:spring-boot-starter-data-redis")
+
 	testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation(platform("org.testcontainers:testcontainers-bom:1.19.8"))
     testImplementation("org.testcontainers:junit-jupiter")
