@@ -18,10 +18,6 @@ public class BookingRequest {
     @NotEmpty(message = "Seats must not be empty")
     private List<String> seats;
 
-    @NotEmpty(message = "Passenger list must not be empty")
-    @Valid
-    private List<PassengerRequest> passengers;
-
     @Email(message = "Invalid email format")
     private String contactEmail;
 
