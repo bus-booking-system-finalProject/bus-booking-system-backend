@@ -7,4 +7,5 @@ import java.util.UUID;
 
 public interface SeatStatusRepository extends JpaRepository<SeatStatus, UUID> {
     List<SeatStatus> findByTripId(UUID tripId);
+    List<SeatStatus> findByTripIdAndSeat_SeatCodeIn(UUID tripId, List<String> seatCodes);
 }

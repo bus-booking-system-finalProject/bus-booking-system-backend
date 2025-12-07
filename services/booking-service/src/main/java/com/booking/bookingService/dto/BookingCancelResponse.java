@@ -1,0 +1,24 @@
+package com.booking.bookingService.dto;
+
+import lombok.Builder;
+import lombok.Data;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+@Data
+@Builder
+public class BookingCancelResponse {
+    private UUID bookingId;
+    private String status;
+    private RefundDto refund;
+    private LocalDateTime cancelledAt;
+
+    @Data @Builder
+    public static class RefundDto {
+        private BigDecimal amount;
+        private int percentage;
+        private String processingTime;
+        private String refundMethod;
+    }
+}
