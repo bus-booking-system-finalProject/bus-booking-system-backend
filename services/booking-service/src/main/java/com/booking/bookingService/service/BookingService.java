@@ -41,20 +41,19 @@ public class BookingService {
         Trip trip = tripRepository.findById(request.getTripId())
                 .orElseThrow(() -> new ResourceNotFoundException("Trip not found"));
 
-        // B. Hold Seats (Logic Redis Lock + DB Update)
-        // UserID truyền vào Redis sẽ là userEmail hoặc "GUEST" nếu không có login
+        // B. Hold Seats
         String userIdForLock = userEmail != null ? userEmail : "GUEST-" + UUID.randomUUID();
         holdSeatsInternal(trip.getId(), request.getSeats(), userIdForLock);
 
         // C. Calculate Pricing
         BigDecimal pricePerTicket = trip.getPrice();
         BigDecimal subtotal = pricePerTicket.multiply(BigDecimal.valueOf(request.getSeats().size()));
-        BigDecimal serviceFee = BigDecimal.valueOf(20000); // Phí cố định ví dụ
+        BigDecimal serviceFee = BigDecimal.valueOf(20000); 
         BigDecimal total = subtotal.add(serviceFee);
 
-        // D. Create Booking Entity
+        // D. Create Booking Entity (Không cần tạo Passenger nữa)
         Booking booking = Booking.builder()
-                .bookingReference("BK" + System.currentTimeMillis()) // Simple ID generation
+                .bookingReference("BK" + System.currentTimeMillis())
                 .userId(userEmail)
                 .trip(trip)
                 .contactEmail(request.getContactEmail())
@@ -62,30 +61,19 @@ public class BookingService {
                 .totalAmount(total)
                 .status(Booking.BookingStatus.PENDING)
                 .createdAt(LocalDateTime.now())
-                .lockedUntil(LocalDateTime.now().plusSeconds(LOCK_TIMEOUT_SECONDS))
+                .lockedUntil(LocalDateTime.now().plusSeconds(600))
+                .seats(request.getSeats()) // Lưu thẳng list ghế vào
                 .build();
-
-        // E. Create Passengers
-        List<Passenger> passengers = request.getPassengers().stream().map(p -> 
-            Passenger.builder()
-                .booking(booking)
-                .fullName(p.getFullName())
-                .documentId(p.getDocumentId())
-                .phone(p.getPhone())
-                .seatCode(p.getSeatCode())
-                .build()
-        ).collect(Collectors.toList());
-        booking.setPassengers(passengers);
 
         bookingRepository.save(booking);
 
-        // F. Return Response
+        // E. Return Response
         return BookingResponse.builder()
                 .bookingId(booking.getId())
                 .tripId(trip.getId())
                 .status("pending")
-                .seats(request.getSeats())
-                .passengers(passengers.size())
+                .seats(booking.getSeats())
+                .passengers(booking.getSeats().size()) // Số khách = Số ghế
                 .pricing(BookingResponse.PricingDto.builder()
                         .subtotal(subtotal)
                         .serviceFee(serviceFee)
@@ -125,8 +113,7 @@ public class BookingService {
         booking.setStatus(Booking.BookingStatus.CANCELLED);
         booking.setCancelledAt(LocalDateTime.now());
         
-        List<String> seatCodes = booking.getPassengers().stream()
-                .map(p -> p.getSeatCode()).collect(Collectors.toList());
+        List<String> seatCodes = booking.getSeats();
         
         releaseSeats(booking.getTrip().getId(), seatCodes); // Hàm này bạn đã có sẵn ở dưới
         bookingRepository.save(booking);
@@ -148,8 +135,7 @@ public class BookingService {
         }
 
         // 1. Release Seats
-        List<String> seatCodes = booking.getPassengers().stream()
-                .map(Passenger::getSeatCode).collect(Collectors.toList());
+        List<String> seatCodes = booking.getSeats();
         releaseSeats(booking.getTrip().getId(), seatCodes);
 
         // 2. Update Booking Status
@@ -291,14 +277,6 @@ public class BookingService {
     }
 
     private BookingDetailResponse mapToDetailResponse(Booking booking) {
-        List<BookingDetailResponse.PassengerDto> passengerDtos = booking.getPassengers().stream()
-                .map(p -> BookingDetailResponse.PassengerDto.builder()
-                        .fullName(p.getFullName())
-                        .documentId(p.getDocumentId())
-                        .seatCode(p.getSeatCode())
-                        .build())
-                .collect(Collectors.toList());
-
         return BookingDetailResponse.builder()
                 .bookingId(booking.getId())
                 .bookingReference(booking.getBookingReference())
@@ -306,14 +284,13 @@ public class BookingService {
                 .status(booking.getStatus().name().toLowerCase())
                 .createdAt(booking.getCreatedAt())
                 .confirmedAt(booking.getConfirmedAt())
+                .seats(booking.getSeats()) // Trả về list String ghế
                 .tripDetails(BookingDetailResponse.TripDetailsDto.builder()
                         .tripId(booking.getTrip().getId())
                         .route(booking.getTrip().getRoute().getOrigin() + " → " + booking.getTrip().getRoute().getDestination())
                         .operator(booking.getTrip().getOperator().getName())
                         .departureTime(booking.getTrip().getDepartureTime())
-                        .arrivalTime(booking.getTrip().getArrivalTime())
                         .build())
-                .passengers(passengerDtos)
                 .pricing(BookingResponse.PricingDto.builder()
                         .total(booking.getTotalAmount())
                         .currency("VND")
@@ -322,9 +299,7 @@ public class BookingService {
     }
 
     private BookingHistoryResponse mapToHistoryResponse(Booking booking) {
-        List<String> seats = booking.getPassengers().stream()
-                .map(Passenger::getSeatCode)
-                .collect(Collectors.toList());
+        List<String> seats = booking.getSeats();
 
         return BookingHistoryResponse.builder()
                 .bookingId(booking.getId())

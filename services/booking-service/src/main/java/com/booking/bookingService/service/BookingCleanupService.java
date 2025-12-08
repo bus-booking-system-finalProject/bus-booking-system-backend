@@ -42,11 +42,7 @@ public class BookingCleanupService {
                 booking.setStatus(Booking.BookingStatus.CANCELLED);
                 booking.setCancelledAt(now);
                 
-                // 3. Nhả ghế trong DB (SeatStatus -> AVAILABLE)
-                // Lấy danh sách mã ghế từ booking
-                List<String> seatCodes = booking.getPassengers().stream()
-                        .map(p -> p.getSeatCode())
-                        .collect(Collectors.toList());
+                List<String> seatCodes = booking.getSeats();
                 
                 // Tìm các SeatStatus đang LOCKED thuộc trip này và mã ghế này
                 List<SeatStatus> lockedSeats = seatStatusRepository.findByTripIdAndSeat_SeatCodeIn(booking.getTrip().getId(), seatCodes);
