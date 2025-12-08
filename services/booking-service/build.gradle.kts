@@ -39,6 +39,16 @@ dependencies {
     // --- Reddis ---
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
 
+    // PDF Generator (OpenPDF)
+    implementation("com.github.librepdf:openpdf:1.3.30")
+
+    // QR Code Generator (ZXing)
+    implementation("com.google.zxing:core:3.5.1")
+    implementation("com.google.zxing:javase:3.5.1")
+
+    // Email Support
+    implementation("org.springframework.boot:spring-boot-starter-mail")
+
 	testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation(platform("org.testcontainers:testcontainers-bom:1.19.8"))
     testImplementation("org.testcontainers:junit-jupiter")
