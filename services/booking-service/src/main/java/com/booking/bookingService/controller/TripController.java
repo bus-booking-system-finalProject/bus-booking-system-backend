@@ -26,19 +26,30 @@ public class TripController {
 
     @PostMapping
     public ResponseEntity<?> createTrip(@Valid @RequestBody TripRequest request) {
-        // Map to response DTO logic would be here, for now returning entity
-        return new ResponseEntity<>(tripService.createTrip(request), HttpStatus.CREATED);
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("data", tripService.createTrip(request));
+        response.put("message", "Trip created successfully");
+        return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
     @PutMapping("/{tripId}")
     public ResponseEntity<?> updateTrip(@PathVariable UUID tripId, @Valid @RequestBody TripRequest request) {
-        return ResponseEntity.ok(tripService.updateTrip(tripId, request));
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("data", tripService.updateTrip(tripId, request));
+        response.put("message", "Trip updated successfully");
+        return ResponseEntity.ok(response);
     }
 
     @DeleteMapping("/{tripId}")
     public ResponseEntity<?> deleteTrip(@PathVariable UUID tripId) {
         tripService.deleteTrip(tripId);
-        return ResponseEntity.noContent().build();
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("data", null);
+        response.put("message", "Trip deleted successfully");
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/search")
@@ -50,6 +61,7 @@ public class TripController {
         Map<String, Object> response = new HashMap<>();
         response.put("success", true);
         response.put("data", result.getContent());
+        response.put("message", "Trips retrieved successfully");
         
         Map<String, Object> pagination = new HashMap<>();
         pagination.put("page", request.getPage());
@@ -66,19 +78,23 @@ public class TripController {
     public ResponseEntity<Map<String, Object>> getTripDetail(@PathVariable UUID tripId) {
         TripSearchResponse trip = tripService.getTripById(tripId);
         
-        return ResponseEntity.ok(Map.of(
-            "success", true,
-            "data", trip
-        ));
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("data", trip);
+        response.put("message", "Trip details retrieved successfully");
+
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/{tripId}/seats")
     public ResponseEntity<Map<String, Object>> getSeatMap(@PathVariable UUID tripId) {
         SeatMapResponse seatMap = tripService.getSeatMap(tripId);
 
-        return ResponseEntity.ok(Map.of(
-                "success", true,
-                "data", seatMap
-        ));
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("data", seatMap);
+        response.put("message", "Seat map retrieved successfully");
+
+        return ResponseEntity.ok(response);
     }
 }

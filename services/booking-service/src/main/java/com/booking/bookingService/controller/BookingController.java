@@ -27,35 +27,34 @@ public class BookingController {
 
     private final BookingService bookingService;
 
-    /**
-     * POST /bookings
-     * Create a new booking (hold seats).
-     */
     @PostMapping
     public ResponseEntity<?> createBooking(
             @Valid @RequestBody BookingRequest request,
-            @AuthenticationPrincipal UserDetails currentUser // Inject UserDetails
+            @AuthenticationPrincipal UserDetails currentUser
     ) {
         String userEmail = null;
 
-        // Nếu không phải guest, yêu cầu phải có thông tin user đăng nhập
         if (!request.isGuestCheckout()) {
             if (currentUser == null) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User must be logged in for non-guest checkout");
+                Map<String, Object> errorResponse = new HashMap<>();
+                errorResponse.put("success", false);
+                errorResponse.put("data", null);
+                errorResponse.put("message", "User must be logged in for non-guest checkout");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
             }
-            userEmail = currentUser.getUsername(); // Lấy email từ UserDetails
+            userEmail = currentUser.getUsername();
         }
 
-        // Gọi service
-        var response = bookingService.createBooking(request, userEmail);
+        var result = bookingService.createBooking(request, userEmail);
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("data", result);
+        response.put("message", "Booking created successfully");
         
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
-    /**
-     * GET /bookings/{bookingId}
-     * Get booking details.
-     */
     @GetMapping("/{bookingId}")
     public ResponseEntity<?> getBookingDetail(
             @PathVariable UUID bookingId,
@@ -63,14 +62,16 @@ public class BookingController {
     ) {
         String userEmail = (currentUser != null) ? currentUser.getUsername() : null;
         
-        var response = bookingService.getBookingDetail(bookingId, userEmail);
+        var result = bookingService.getBookingDetail(bookingId, userEmail);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("data", result);
+        response.put("message", "Booking details retrieved successfully");
+
         return ResponseEntity.ok(response);
     }
 
-    /**
-     * PUT /bookings/{bookingId}/cancel
-     * Cancel a booking.
-     */
     @PutMapping("/{bookingId}/cancel")
     public ResponseEntity<?> cancelBooking(
             @PathVariable UUID bookingId,
@@ -79,14 +80,16 @@ public class BookingController {
     ) {
         String userEmail = (currentUser != null) ? currentUser.getUsername() : null;
         
-        var response = bookingService.cancelBooking(bookingId, request, userEmail);
+        var result = bookingService.cancelBooking(bookingId, request, userEmail);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("data", result);
+        response.put("message", "Booking cancelled successfully");
+
         return ResponseEntity.ok(response);
     }
 
-    /**
-     * GET /bookings
-     * Get user's booking history.
-     */
     @GetMapping
     public ResponseEntity<?> getUserBookings(
             @RequestParam(required = false) String status,
@@ -94,24 +97,25 @@ public class BookingController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int limit,
-            @AuthenticationPrincipal UserDetails currentUser // Inject UserDetails
+            @AuthenticationPrincipal UserDetails currentUser
     ) {
-        // Bắt buộc phải login mới xem được lịch sử
         if (currentUser == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("data", null);
+            errorResponse.put("message", "Unauthorized access to booking history");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
         }
         
         String userEmail = currentUser.getUsername();
 
-        // Tạo Pageable
         Pageable pageable = PageRequest.of(page - 1, limit, Sort.by(Sort.Direction.DESC, "createdAt"));
-
         var result = bookingService.getUserBookings(userEmail, status, fromDate, toDate, pageable);
 
-        // Map response format chuẩn
         Map<String, Object> response = new HashMap<>();
         response.put("success", true);
         response.put("data", result.getContent());
+        response.put("message", "Booking history retrieved successfully");
         
         Map<String, Object> pagination = new HashMap<>();
         pagination.put("page", page);

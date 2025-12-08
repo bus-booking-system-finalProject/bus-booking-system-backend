@@ -10,6 +10,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.List;
@@ -22,14 +25,18 @@ public class BusController {
 
     @PostMapping
     public ResponseEntity<?> createBus(@Valid @RequestBody BusRequest request) {
-        return new ResponseEntity<>(busService.createBus(request), HttpStatus.CREATED);
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("data", busService.createBus(request));
+        response.put("message", "Bus created successfully");
+        return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
     @GetMapping
-    public ResponseEntity<List<BusResponse>> getAllBuses() {
+    public ResponseEntity<?> getAllBuses() {
         List<Bus> buses = busService.getAllBuses();
         
-        List<BusResponse> response = buses.stream().map(bus -> 
+        List<BusResponse> busResponses = buses.stream().map(bus -> 
             BusResponse.builder()
                 .id(bus.getId())
                 .operatorId(bus.getOperator().getId())
@@ -41,32 +48,50 @@ public class BusController {
                 .build()
         ).collect(Collectors.toList());
 
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("data", busResponses);
+        response.put("message", "Buses retrieved successfully");
         return ResponseEntity.ok(response);
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<?> getBus(@PathVariable UUID id) {
-        return ResponseEntity.ok(busService.getBus(id));
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("data", busService.getBus(id));
+        response.put("message", "Bus retrieved successfully");
+        return ResponseEntity.ok(response);
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<?> updateBus(@PathVariable UUID id, @Valid @RequestBody BusRequest request) {
-        return ResponseEntity.ok(busService.updateBus(id, request));
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("data", busService.updateBus(id, request));
+        response.put("message", "Bus updated successfully");
+        return ResponseEntity.ok(response);
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteBus(@PathVariable UUID id) {
         busService.deleteBus(id);
-        return ResponseEntity.noContent().build();
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("data", null);
+        response.put("message", "Bus deleted successfully");
+        return ResponseEntity.ok(response);
     }
 
-    // --- Seat Map Management Endpoints ---
-    
     @PostMapping("/{id}/seats/custom")
     public ResponseEntity<?> saveCustomSeatMap(
             @PathVariable UUID id, 
             @RequestBody List<SeatDefinition> seatDefinitions
     ) {
-        return ResponseEntity.ok(busService.saveCustomSeatMap(id, seatDefinitions));
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("data", busService.saveCustomSeatMap(id, seatDefinitions));
+        response.put("message", "Custom seat map saved successfully");
+        return ResponseEntity.ok(response);
     }
 }

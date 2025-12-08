@@ -2,6 +2,7 @@ package com.booking.userService.controller;
 
 import com.booking.userService.dto.LoginRequest;
 import com.booking.userService.dto.RegisterRequest;
+import com.booking.userService.dto.UserProfileResponse;
 import com.booking.userService.dto.LoginResponse;
 import com.booking.userService.dto.UserResponse; 
 import com.booking.userService.service.JwtService;
@@ -20,6 +21,9 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.HashMap;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/")
@@ -43,15 +47,29 @@ public class UserController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<String> register(@Valid @RequestBody RegisterRequest request) {
-        userService.registerUser(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body("{ \"message\": \"User registered successfully\"}");
+    public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest request) {
+        User newUser = userService.registerUser(request); 
+        
+        // Reuse your UserResponse DTO for consistency
+        UserResponse userProfileResp = new UserResponse(
+                newUser.getId(),
+                newUser.getEmail(),
+                newUser.getRole(),
+                newUser.getCreatedAt()
+        );
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("data", new UserProfileResponse(userProfileResp)); // Return the full user profile
+        response.put("message", "User registered successfully");
+        
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @PostMapping("/login")
-    public ResponseEntity<LoginResponse> login(
+    public ResponseEntity<?> login(
             @Valid @RequestBody LoginRequest request,
-            HttpServletResponse response // Inject response
+            HttpServletResponse servletResponse 
     ) {
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
@@ -68,9 +86,9 @@ public class UserController {
         userService.saveUserRefreshToken(user, refreshToken);
 
         // --- Set cookies ---
-        setSecureHttpOnlyCookie(response, "refreshToken", refreshToken, REFRESH_TOKEN_VALIDITY_SECONDS);
+        setSecureHttpOnlyCookie(servletResponse, "refreshToken", refreshToken, REFRESH_TOKEN_VALIDITY_SECONDS);
 
-        // Return user profile (like getMe)
+        // Return user profile
         UserResponse userResp = new UserResponse(
                 user.getId(),
                 user.getEmail(),
@@ -78,13 +96,18 @@ public class UserController {
                 user.getCreatedAt()
         );
 
-        return ResponseEntity.ok(new LoginResponse(accessToken, userResp));
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("data", new LoginResponse(accessToken, userResp));
+        response.put("message", "Login successfully");
+
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/refresh")
-    public ResponseEntity<LoginResponse> refreshToken(
-            @CookieValue(name = "refreshToken") String requestRefreshToken, // Read from cookie
-            HttpServletResponse response // Inject response
+    public ResponseEntity<?> refreshToken(
+            @CookieValue(name = "refreshToken") String requestRefreshToken,
+            HttpServletResponse servletResponse
     ) {
         return userService.findByRefreshToken(requestRefreshToken)
                 .filter(user -> jwtService.isTokenValid(requestRefreshToken, user))
@@ -93,7 +116,7 @@ public class UserController {
                     String newRefreshToken = jwtService.generateRefreshToken(user);
 
                     userService.saveUserRefreshToken(user, newRefreshToken);
-                    setSecureHttpOnlyCookie(response, "refreshToken", newRefreshToken, REFRESH_TOKEN_VALIDITY_SECONDS);
+                    setSecureHttpOnlyCookie(servletResponse, "refreshToken", newRefreshToken, REFRESH_TOKEN_VALIDITY_SECONDS);
 
                     UserResponse userResp = new UserResponse(
                             user.getId(),
@@ -102,42 +125,60 @@ public class UserController {
                             user.getCreatedAt()
                     );
 
-                    return ResponseEntity.ok(new LoginResponse(newAccessToken, userResp));
+                    Map<String, Object> response = new HashMap<>();
+                    response.put("success", true);
+                    response.put("data", new LoginResponse(newAccessToken, userResp));
+                    response.put("message", "Token refreshed successfully");
+
+                    return ResponseEntity.ok((Object) response);
                 })
-                .orElse(ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null));
+                .orElseGet(() -> {
+                    Map<String, Object> errorResponse = new HashMap<>();
+                    errorResponse.put("success", false);
+                    errorResponse.put("data", null);
+                    errorResponse.put("message", "Invalid or expired refresh token");
+                    return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
+                });
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<String> logout(
+    public ResponseEntity<?> logout(
         HttpServletResponse response,
         @CookieValue(name = "refreshToken", required = false) String refreshToken
     ) {
-        // --- Delete token from DB if it exists ---
         if (refreshToken != null && !refreshToken.isEmpty()) {
             userService.deleteRefreshToken(refreshToken);
         }
 
-        // --- Clear cookies ---
         clearCookie(response, "refreshToken");
-        // We could also clear the token from the DB, but clearing the cookie is sufficient
-        return ResponseEntity.ok("{ \"message\": \"Logged out successfully\"}");
+        
+        Map<String, Object> body = new HashMap<>();
+        body.put("success", true);
+        body.put("data", null);
+        body.put("message", "Logged out successfully");
+
+        return ResponseEntity.ok(body);
     }
     
     @GetMapping("/me")
-    public ResponseEntity<UserResponse> getMyProfile(
+    public ResponseEntity<?> getMyProfile(
             @AuthenticationPrincipal UserDetails currentUserDetails 
     ) {
-        // The Gateway only gave us the Email and Role. 
-        // We must fetch the full ID and CreatedAt from the DB for this specific request.
         User user = (User) userService.loadUserByUsername(currentUserDetails.getUsername());
 
-        UserResponse userResponse = new UserResponse(
+        UserResponse userProfileResponse = new UserResponse(
                 user.getId(),
                 user.getEmail(),
                 user.getRole(),
                 user.getCreatedAt()
         );
-        return ResponseEntity.ok(userResponse);
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("data", new UserProfileResponse(userProfileResponse));
+        response.put("message", "User profile retrieved successfully");
+        
+        return ResponseEntity.ok(response);
     }
 
     // --- Helper methods ---
@@ -147,7 +188,7 @@ public class UserController {
                 .httpOnly(true)
                 .secure(cookieSecure)
                 .path("/")
-                .maxAge(0) // Expire immediately
+                .maxAge(0) 
                 .sameSite("Lax")
                 .build();
 
@@ -157,10 +198,10 @@ public class UserController {
     private void setSecureHttpOnlyCookie(HttpServletResponse response, String name, String value, long maxAgeInSeconds) {
         ResponseCookie cookie = ResponseCookie.from(name, value)
                 .httpOnly(true)
-                .secure(cookieSecure) // Configurable (true for HTTPS, false for localhost dev)
+                .secure(cookieSecure)
                 .path("/")
                 .maxAge(maxAgeInSeconds)
-                .sameSite("Lax") // Protects against CSRF while allowing normal navigation
+                .sameSite("Lax")
                 .build();
 
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());

@@ -9,54 +9,54 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    // 1. Xử lý lỗi 404 Not Found (VD: Trip not found)
+    // 1. Handle Resource Not Found (404)
+    // Example: Trip not found, Bus not found
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleResourceNotFound(ResourceNotFoundException ex) {
-        return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage());
+        return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage(), null);
     }
 
-    // 2. Xử lý lỗi 409 Conflict (VD: Ghế đã bị đặt)
-    // Lưu ý: BookingService đang ném IllegalStateException khi ghế trùng
+    // 2. Handle Conflict / Illegal State (409 or 400)
+    // Example: Seat already booked, Booking already cancelled
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<Map<String, Object>> handleConflict(IllegalStateException ex) {
-        return buildResponse(HttpStatus.CONFLICT, ex.getMessage());
+        // returning CONFLICT (409) is often more semantic for state errors than BAD_REQUEST
+        return buildResponse(HttpStatus.CONFLICT, ex.getMessage(), null);
     }
 
-    // 3. Xử lý lỗi Validation (VD: Thiếu field, sai format email)
+    // 3. Handle Validation Errors (400)
+    // Example: Invalid email format, missing required fields
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidationExceptions(MethodArgumentNotValidException ex) {
-        Map<String, String> errors = new HashMap<>();
-        ex.getBindingResult().getAllErrors().forEach((error) -> {
-            String fieldName = ((FieldError) error).getField();
-            String errorMessage = error.getDefaultMessage();
-            errors.put(fieldName, errorMessage);
-        });
+        // Collect errors into a simple Map<Field, Message>
+        Map<String, String> errors = ex.getBindingResult().getAllErrors().stream()
+                .collect(Collectors.toMap(
+                        error -> ((FieldError) error).getField(),
+                        error -> error.getDefaultMessage(),
+                        (existing, replacement) -> existing // Keep first error if duplicate
+                ));
         
-        Map<String, Object> response = new HashMap<>();
-        response.put("success", false);
-        response.put("status", HttpStatus.BAD_REQUEST.value());
-        response.put("message", "Validation failed");
-        response.put("errors", errors);
-        
-        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+        return buildResponse(HttpStatus.BAD_REQUEST, "Validation failed", errors);
     }
 
-    // 4. Xử lý lỗi chung (500)
+    // 4. Handle General Exceptions (500)
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleGeneralException(Exception ex) {
-        ex.printStackTrace(); // Log lỗi ra console để debug
-        return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred: " + ex.getMessage());
+        // In a real app, use a Logger here: log.error("Internal Error", ex);
+        ex.printStackTrace(); 
+        return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred", null);
     }
 
-    // Helper build JSON response
-    private ResponseEntity<Map<String, Object>> buildResponse(HttpStatus status, String message) {
+    // Helper to keep response format consistent
+    private ResponseEntity<Map<String, Object>> buildResponse(HttpStatus status, String message, Object data) {
         Map<String, Object> response = new HashMap<>();
         response.put("success", false);
-        response.put("status", status.value());
+        response.put("data", data);
         response.put("message", message);
         return new ResponseEntity<>(response, status);
     }

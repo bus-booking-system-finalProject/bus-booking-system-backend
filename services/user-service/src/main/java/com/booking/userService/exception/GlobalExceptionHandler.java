@@ -4,53 +4,62 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @ControllerAdvice
 public class GlobalExceptionHandler {
 
+    // Helper method to build consistent error response
+    private ResponseEntity<Map<String, Object>> buildErrorResponse(HttpStatus status, String message, Object data) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", false);
+        response.put("data", data);
+        response.put("message", message);
+        return new ResponseEntity<>(response, status);
+    }
+
     // Handles validation errors from @Valid
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<Object> handleValidationExceptions(MethodArgumentNotValidException ex) {
-        Map<String, String> errors = new HashMap<>();
-        ex.getBindingResult().getFieldErrors().forEach(error -> 
-            errors.put(error.getField(), error.getDefaultMessage())
-        );
-        return new ResponseEntity<>(errors, HttpStatus.BAD_REQUEST);
+    public ResponseEntity<Map<String, Object>> handleValidationExceptions(MethodArgumentNotValidException ex) {
+        Map<String, String> errors = ex.getBindingResult().getFieldErrors().stream()
+                .collect(Collectors.toMap(
+                        FieldError::getField,
+                        FieldError::getDefaultMessage,
+                        (existing, replacement) -> existing
+                ));
+        
+        return buildErrorResponse(HttpStatus.BAD_REQUEST, "Validation failed", errors);
     }
 
     // Handles our custom "Email exists" error
     @ExceptionHandler(EmailAlreadyExistsException.class)
-    public ResponseEntity<Object> handleEmailAlreadyExists(EmailAlreadyExistsException ex) {
-        Map<String, String> error = new HashMap<>();
-        error.put("error", ex.getMessage());
-        return new ResponseEntity<>(error, HttpStatus.CONFLICT);
+    public ResponseEntity<Map<String, Object>> handleEmailAlreadyExists(EmailAlreadyExistsException ex) {
+        return buildErrorResponse(HttpStatus.CONFLICT, ex.getMessage(), null);
     }
 
-    /**
-     * Handles failed login attempts (e.g., wrong password).
-     */
+    // Handles failed login attempts (e.g., wrong password)
     @ExceptionHandler(BadCredentialsException.class)
-    public ResponseEntity<Object> handleBadCredentials(BadCredentialsException ex) {
-        Map<String, String> error = new HashMap<>();
-        // Note: It's safer to return a generic message for both "user not found"
-        // and "bad password" to avoid revealing which one was incorrect.
-        error.put("error", "Invalid email or password");
-        return new ResponseEntity<>(error, HttpStatus.UNAUTHORIZED); // 401
+    public ResponseEntity<Map<String, Object>> handleBadCredentials(BadCredentialsException ex) {
+        return buildErrorResponse(HttpStatus.UNAUTHORIZED, "Invalid email or password", null);
     }
 
-    /**
-     * Handles the case where the user (email) is not found.
-     */
+    // Handles user not found
     @ExceptionHandler(UsernameNotFoundException.class)
-    public ResponseEntity<Object> handleUsernameNotFound(UsernameNotFoundException ex) {
-        Map<String, String> error = new HashMap<>();
-        error.put("error", "Invalid email or password");
-        return new ResponseEntity<>(error, HttpStatus.UNAUTHORIZED); // 401
+    public ResponseEntity<Map<String, Object>> handleUsernameNotFound(UsernameNotFoundException ex) {
+        return buildErrorResponse(HttpStatus.UNAUTHORIZED, "Invalid email or password", null);
+    }
+    
+    // Generic Exception Handler
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<Map<String, Object>> handleGlobalException(Exception ex) {
+        // Log the error here in production
+        return buildErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred", null);
     }
 }

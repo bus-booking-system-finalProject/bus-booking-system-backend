@@ -21,7 +21,6 @@ public class SeatMapResponse {
         private String seatCode;
         private String status;
         private BigDecimal price;
-        private String type;
         private int deck;
         
         // Coordinates
