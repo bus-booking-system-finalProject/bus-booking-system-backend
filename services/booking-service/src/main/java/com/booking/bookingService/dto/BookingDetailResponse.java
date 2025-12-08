@@ -13,7 +13,7 @@ public class BookingDetailResponse {
     private String bookingReference; // Mã vé (VD: BK2025...)
     private String userId; // Email hoặc User ID
     private TripDetailsDto tripDetails;
-    private List<PassengerDto> passengers;
+    private List<String> seats;
     private BookingResponse.PricingDto pricing;
     private String status;
     private PaymentDto payment;

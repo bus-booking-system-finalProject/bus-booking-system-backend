@@ -16,9 +16,9 @@ public class Booking {
     private UUID id;
 
     @Column(unique = true)
-    private String bookingReference; // Mã vé business code
+    private String bookingReference;
 
-    private String userId; // Lưu email hoặc User ID từ token
+    private String userId;
     
     @ManyToOne
     @JoinColumn(name = "trip_id")
@@ -35,12 +35,13 @@ public class Booking {
     private LocalDateTime createdAt;
     private LocalDateTime confirmedAt;
     private LocalDateTime cancelledAt;
-    
-    // Hết hạn giữ chỗ (cho trạng thái PENDING)
     private LocalDateTime lockedUntil;
 
-    @OneToMany(mappedBy = "booking", cascade = CascadeType.ALL)
-    private List<Passenger> passengers;
+    // THAY ĐỔI: Lưu danh sách ghế trực tiếp
+    @ElementCollection
+    @CollectionTable(name = "booking_seats", joinColumns = @JoinColumn(name = "booking_id"))
+    @Column(name = "seat_code")
+    private List<String> seats; 
 
     public enum BookingStatus { PENDING, CONFIRMED, CANCELLED, COMPLETED }
 }
