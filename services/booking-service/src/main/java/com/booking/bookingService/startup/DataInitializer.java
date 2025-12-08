@@ -49,7 +49,7 @@ public class DataInitializer implements CommandLineRunner {
         
         // Use native SQL to avoid entity loading issues
         try {
-            entityManager.createNativeQuery("TRUNCATE TABLE seat_status CASCADE").executeUpdate();
+            entityManager.createNativeQuery("TRUNCATE TABLE trip_seat CASCADE").executeUpdate();
             entityManager.createNativeQuery("TRUNCATE TABLE trip CASCADE").executeUpdate();
             entityManager.createNativeQuery("TRUNCATE TABLE seat CASCADE").executeUpdate();
             entityManager.createNativeQuery("TRUNCATE TABLE route CASCADE").executeUpdate();
@@ -62,7 +62,7 @@ public class DataInitializer implements CommandLineRunner {
         } catch (Exception e) {
             log.warn("Could not truncate tables (might be first run): {}", e.getMessage());
             // If truncate fails, try delete (slower but works if schema doesn't exist yet)
-            entityManager.createNativeQuery("DELETE FROM seat_status").executeUpdate();
+            entityManager.createNativeQuery("DELETE FROM trip_seat").executeUpdate();
             entityManager.createNativeQuery("DELETE FROM trip").executeUpdate();
             entityManager.createNativeQuery("DELETE FROM seat").executeUpdate();
             entityManager.createNativeQuery("DELETE FROM route").executeUpdate();
