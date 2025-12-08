@@ -1,9 +1,9 @@
 package com.booking.bookingService.service;
 
 import com.booking.bookingService.model.Ticket;
-import com.booking.bookingService.model.SeatStatus;
+import com.booking.bookingService.model.TripSeat;
 import com.booking.bookingService.repository.TicketRepository;
-import com.booking.bookingService.repository.SeatStatusRepository;
+import com.booking.bookingService.repository.TripSeatRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -19,7 +19,7 @@ import java.util.List;
 public class TicketCleanupService {
 
     private final TicketRepository ticketRepository;
-    private final SeatStatusRepository seatStatusRepository;
+    private final TripSeatRepository seatStatusRepository;
     private final RedisLockService redisLockService;
 
     // Chạy mỗi 1 phút (60000ms) để quét vé hết hạn
@@ -46,13 +46,13 @@ public class TicketCleanupService {
                 
                 // Tìm các SeatStatus đang LOCKED thuộc trip này và mã ghế này
                 // (Đảm bảo bạn đã có method này trong SeatStatusRepository)
-                List<SeatStatus> lockedSeats = seatStatusRepository.findByTripIdAndSeat_SeatCodeIn(ticket.getTrip().getId(), seatCodes);
+                List<TripSeat> lockedSeats = seatStatusRepository.findByTripIdAndSeat_SeatCodeIn(ticket.getTrip().getId(), seatCodes);
                 
                 if (lockedSeats != null && !lockedSeats.isEmpty()) {
-                    for (SeatStatus seatStatus : lockedSeats) {
+                    for (TripSeat seatStatus : lockedSeats) {
                         // Chỉ nhả nếu nó đang LOCKED (phòng trường hợp lỗi logic)
-                        if (seatStatus.getState() == SeatStatus.SeatState.LOCKED) {
-                            seatStatus.setState(SeatStatus.SeatState.AVAILABLE);
+                        if (seatStatus.getStatus() == TripSeat.Status.LOCKED) {
+                            seatStatus.setStatus(TripSeat.Status.AVAILABLE);
                             
                             // Xóa key Redis cho chắc chắn
                             String redisKey = "lock:seat:" + ticket.getTrip().getId() + ":" + seatStatus.getSeat().getSeatCode();

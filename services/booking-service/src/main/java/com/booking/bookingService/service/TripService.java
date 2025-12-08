@@ -26,7 +26,7 @@ public class TripService {
     private final BusRepository busRepository;
     private final SeatRepository seatRepository;
     private final RouteRepository routeRepository;
-    private final SeatStatusRepository seatStatusRepository;
+    private final TripSeatRepository seatStatusRepository;
 
     private final RedisLockService redisLockService;
 
@@ -56,11 +56,11 @@ public class TripService {
 
         // Initialize Seat Statuses
         List<Seat> physicalSeats = seatRepository.findByBusId(bus.getId());
-        List<SeatStatus> statuses = physicalSeats.stream().map(seat -> 
-            SeatStatus.builder()
+        List<TripSeat> statuses = physicalSeats.stream().map(seat -> 
+            TripSeat.builder()
                 .trip(savedTrip)
                 .seat(seat)
-                .state(SeatStatus.SeatState.AVAILABLE)
+                .status(TripSeat.Status.AVAILABLE)
                 .build()
         ).collect(Collectors.toList());
         
@@ -108,7 +108,7 @@ public class TripService {
         
         // Soft delete (Cancel) or Hard delete?
         // Let's do hard delete for CRUD simplicity, but clean up child records first
-        List<SeatStatus> statuses = seatStatusRepository.findByTripId(tripId);
+        List<TripSeat> statuses = seatStatusRepository.findByTripId(tripId);
         seatStatusRepository.deleteAll(statuses);
         
         tripRepository.delete(trip);
@@ -269,18 +269,18 @@ public class TripService {
         List<Seat> physicalSeats = seatRepository.findByBusId(trip.getBus().getId());
 
         // 2. Get current statuses from DB
-        List<SeatStatus> seatStatuses = seatStatusRepository.findByTripId(tripId);
+        List<TripSeat> seatStatuses = seatStatusRepository.findByTripId(tripId);
 
         // [START LAZY UPDATE LOGIC]
-        List<SeatStatus> expiredSeats = new ArrayList<>();
+        List<TripSeat> expiredSeats = new ArrayList<>();
         boolean hasChanges = false;
 
-        for (SeatStatus status : seatStatuses) {
-            if (status.getState() == SeatStatus.SeatState.LOCKED) {
+        for (TripSeat status : seatStatuses) {
+            if (status.getStatus() == TripSeat.Status.LOCKED) {
                 String redisKey = "lock:seat:" + tripId + ":" + status.getSeat().getSeatCode();
 
                 if (!redisLockService.isLocked(redisKey)) {
-                    status.setState(SeatStatus.SeatState.AVAILABLE);
+                    status.setStatus(TripSeat.Status.AVAILABLE);
                     expiredSeats.add(status);
                     hasChanges = true;
                 }
@@ -291,10 +291,10 @@ public class TripService {
             seatStatusRepository.saveAll(expiredSeats);
         }
 
-        Map<UUID, SeatStatus.SeatState> statusMap = seatStatuses.stream()
+        Map<UUID, TripSeat.Status> statusMap = seatStatuses.stream()
                 .collect(Collectors.toMap(
                         s -> s.getSeat().getId(),
-                        SeatStatus::getState
+                        TripSeat::getStatus
                 ));
 
         // Calculate dimensions
@@ -305,7 +305,7 @@ public class TripService {
         // 3. Map to DTOs
         List<SeatMapResponse.SeatDto> seatDtos = physicalSeats.stream().map(seat -> {
             // Lấy trạng thái từ map (lúc này map đã chứa dữ liệu sạch - fresh data)
-            String status = statusMap.getOrDefault(seat.getId(), SeatStatus.SeatState.AVAILABLE).name().toLowerCase();
+            String status = statusMap.getOrDefault(seat.getId(), TripSeat.Status.AVAILABLE).name().toLowerCase();
             
             return SeatMapResponse.SeatDto.builder()
                     .seatId(seat.getId().toString())

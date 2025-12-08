@@ -5,9 +5,9 @@ import lombok.*;
 import java.util.UUID;
 
 @Entity
-@Table(name = "seat_status")
+@Table(name = "trip_seat")
 @Data @NoArgsConstructor @AllArgsConstructor @Builder
-public class SeatStatus {
+public class TripSeat {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
@@ -21,7 +21,7 @@ public class SeatStatus {
     private Seat seat;
 
     @Enumerated(EnumType.STRING)
-    private SeatState state; // AVAILABLE, LOCKED, BOOKED
+    private Status status; // AVAILABLE, LOCKED, BOOKED
 
-    public enum SeatState { AVAILABLE, LOCKED, BOOKED }
+    public enum Status { AVAILABLE, LOCKED, BOOKED }
 }

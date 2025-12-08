@@ -26,7 +26,7 @@ import java.util.stream.Collectors;
 public class TicketService {
 
     private final RedisLockService redisLockService;
-    private final SeatStatusRepository seatStatusRepository;
+    private final TripSeatRepository seatStatusRepository;
     private final TripRepository tripRepository;
     private final TicketRepository ticketRepository;
     // private final SeatRepository seatRepository;
@@ -170,18 +170,18 @@ public class TicketService {
                 lockedKeys.add(key);
             }
 
-            List<SeatStatus> allStatuses = seatStatusRepository.findByTripId(tripId);
-            List<SeatStatus> targetStatuses = allStatuses.stream()
+            List<TripSeat> allStatuses = seatStatusRepository.findByTripId(tripId);
+            List<TripSeat> targetStatuses = allStatuses.stream()
                     .filter(s -> seatCodes.contains(s.getSeat().getSeatCode()))
                     .collect(Collectors.toList());
 
             if (targetStatuses.size() != seatCodes.size()) throw new ResourceNotFoundException("Ghế không hợp lệ");
 
-            for (SeatStatus status : targetStatuses) {
-                if (status.getState() == SeatStatus.SeatState.BOOKED) {
+            for (TripSeat status : targetStatuses) {
+                if (status.getStatus() == TripSeat.Status.BOOKED) {
                     throw new IllegalStateException("Ghế " + status.getSeat().getSeatCode() + " đã được bán.");
                 }
-                status.setState(SeatStatus.SeatState.LOCKED);
+                status.setStatus(TripSeat.Status.LOCKED);
             }
             seatStatusRepository.saveAll(targetStatuses);
         } catch (Exception e) {
@@ -194,8 +194,8 @@ public class TicketService {
         for (String seatCode : seatCodes) {
             redisLockService.unlock("lock:seat:" + tripId + ":" + seatCode);
         }
-        List<SeatStatus> statuses = seatStatusRepository.findByTripIdAndSeat_SeatCodeIn(tripId, seatCodes);
-        statuses.forEach(s -> s.setState(SeatStatus.SeatState.AVAILABLE));
+        List<TripSeat> statuses = seatStatusRepository.findByTripIdAndSeat_SeatCodeIn(tripId, seatCodes);
+        statuses.forEach(s -> s.setStatus(TripSeat.Status.AVAILABLE));
         seatStatusRepository.saveAll(statuses);
     }
     

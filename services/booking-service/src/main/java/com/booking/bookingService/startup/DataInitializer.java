@@ -35,7 +35,7 @@ public class DataInitializer implements CommandLineRunner {
     private final RouteRepository routeRepository;
     private final TripRepository tripRepository;
     private final SeatRepository seatRepository;
-    private final SeatStatusRepository seatStatusRepository;
+    private final TripSeatRepository seatStatusRepository;
     private final ObjectMapper objectMapper;
 
     @PersistenceContext
@@ -197,18 +197,18 @@ public class DataInitializer implements CommandLineRunner {
 
     private int initializeSeatStatusesForTrip(Trip trip, Bus bus) {
         List<Seat> seats = seatRepository.findByBusId(bus.getId());
-        List<SeatStatus> statuses = new ArrayList<>();
+        List<TripSeat> statuses = new ArrayList<>();
         int availableCount = 0;
 
         for (Seat seat : seats) {
             boolean isBooked = Math.random() < 0.1;
-            SeatStatus.SeatState state = isBooked ? SeatStatus.SeatState.BOOKED : SeatStatus.SeatState.AVAILABLE;
+            TripSeat.Status statusValue = isBooked ? TripSeat.Status.BOOKED : TripSeat.Status.AVAILABLE;
             if (!isBooked) availableCount++;
 
-            SeatStatus status = SeatStatus.builder()
+            TripSeat status = TripSeat.builder()
                     .trip(trip)
                     .seat(seat)
-                    .state(state)
+                    .status(statusValue)
                     .build();
             statuses.add(status);
         }
