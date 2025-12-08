@@ -47,31 +47,31 @@ public class DataInitializer implements CommandLineRunner {
         // --- 1. CLEAN UP EXISTING DATA ---
         log.info("Cleaning up existing data to ensure a fresh start...");
         
-        // Use native SQL to avoid entity loading issues
-        try {
-            entityManager.createNativeQuery("TRUNCATE TABLE trip_seat CASCADE").executeUpdate();
-            entityManager.createNativeQuery("TRUNCATE TABLE trip CASCADE").executeUpdate();
-            entityManager.createNativeQuery("TRUNCATE TABLE seat CASCADE").executeUpdate();
-            entityManager.createNativeQuery("TRUNCATE TABLE route CASCADE").executeUpdate();
-            entityManager.createNativeQuery("TRUNCATE TABLE bus CASCADE").executeUpdate();
-            // REMOVED: entityManager.createNativeQuery("TRUNCATE TABLE seat_type CASCADE").executeUpdate();
-            entityManager.createNativeQuery("TRUNCATE TABLE operator CASCADE").executeUpdate();
-            entityManager.createNativeQuery("TRUNCATE TABLE booking CASCADE").executeUpdate();
-            entityManager.createNativeQuery("TRUNCATE TABLE passenger CASCADE").executeUpdate();
-            entityManager.flush();
-        } catch (Exception e) {
-            log.warn("Could not truncate tables (might be first run): {}", e.getMessage());
-            // If truncate fails, try delete (slower but works if schema doesn't exist yet)
-            entityManager.createNativeQuery("DELETE FROM trip_seat").executeUpdate();
-            entityManager.createNativeQuery("DELETE FROM trip").executeUpdate();
-            entityManager.createNativeQuery("DELETE FROM seat").executeUpdate();
-            entityManager.createNativeQuery("DELETE FROM route").executeUpdate();
-            entityManager.createNativeQuery("DELETE FROM bus").executeUpdate();
-            // REMOVED: entityManager.createNativeQuery("DELETE FROM seat_type").executeUpdate();
-            entityManager.createNativeQuery("DELETE FROM operator").executeUpdate();
-            entityManager.createNativeQuery("DELETE FROM booking").executeUpdate();
-            entityManager.createNativeQuery("DELETE FROM passenger").executeUpdate();
-        }
+        // A. Xóa hẳn các bảng không còn dùng nữa (Booking, Passenger cũ)
+        // Dùng DROP TABLE IF EXISTS để không báo lỗi nếu bảng đã bị xóa
+        entityManager.createNativeQuery("DROP TABLE IF EXISTS booking_seats CASCADE").executeUpdate();
+        entityManager.createNativeQuery("DROP TABLE IF EXISTS passenger CASCADE").executeUpdate();
+        entityManager.createNativeQuery("DROP TABLE IF EXISTS booking CASCADE").executeUpdate();
+        // Xóa luôn bảng seat_type nếu còn sót
+        entityManager.createNativeQuery("DROP TABLE IF EXISTS seat_type CASCADE").executeUpdate();
+
+        // B. Làm sạch dữ liệu các bảng đang dùng (Ticket, Trip, Bus...)
+        // Dùng TRUNCATE TABLE IF EXISTS để tránh lỗi nếu bảng chưa được tạo (lần chạy đầu tiên)
+        entityManager.createNativeQuery("TRUNCATE TABLE ticket_seats CASCADE").executeUpdate();
+        entityManager.createNativeQuery("TRUNCATE TABLE ticket CASCADE").executeUpdate();
+        
+        entityManager.createNativeQuery("TRUNCATE TABLE trip_seat CASCADE").executeUpdate();
+        
+        // Các bảng cha (Trip, Seat, Route, Bus, Operator)
+        // Dùng CASCADE để nó tự động xóa dữ liệu liên quan ở bảng con
+        entityManager.createNativeQuery("TRUNCATE TABLE trip CASCADE").executeUpdate();
+        entityManager.createNativeQuery("TRUNCATE TABLE seat CASCADE").executeUpdate();
+        entityManager.createNativeQuery("TRUNCATE TABLE route CASCADE").executeUpdate();
+        entityManager.createNativeQuery("TRUNCATE TABLE bus CASCADE").executeUpdate();
+        entityManager.createNativeQuery("TRUNCATE TABLE operator CASCADE").executeUpdate();
+
+        // Flush để đảm bảo lệnh chạy ngay lập tức
+        entityManager.flush();
 
         log.info("All existing data cleared. Initializing new data from JSON file...");
 
