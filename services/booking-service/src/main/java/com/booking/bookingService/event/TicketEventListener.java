@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
@@ -17,26 +18,25 @@ import org.springframework.transaction.event.TransactionalEventListener;
 @Slf4j
 public class TicketEventListener {
 
-    private final TicketRepository TicketRepository;
+    private final TicketRepository ticketRepository;
     private final EmailService emailService;
 
     /**
      * @Async: Runs this method in a separate thread.
      * @TransactionalEventListener: Only fires AFTER the transaction commits successfully.
-     * This ensures we don't send an email if the DB save fails.
+     * Propagation.REQUIRES_NEW: MUST be used here to open a fresh DB session for lazy loading.
      */
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    @Transactional(readOnly = true) // Open a new transaction to fetch lazy data (passengers)
+    @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
     public void handleTicketSuccess(TicketSuccessEvent event) {
         log.info("Starting background processing for Ticket: {}", event.getTicketId());
 
         try {
-            // 1. Re-fetch Ticket to ensure we have a fresh session (avoids LazyInitException)
-            Ticket ticket = TicketRepository.findById(event.getTicketId())
+            Ticket ticket = ticketRepository.findById(event.getTicketId())
                     .orElseThrow(() -> new ResourceNotFoundException("Ticket not found"));
 
-            // 3. Send Email (Heavy Network task)
+            // Send Email (Heavy Network task)
             emailService.sendTicketEmail(
                     ticket.getContactEmail(),
                     "Ticket Confirmation - " + ticket.getTicketCode(),
