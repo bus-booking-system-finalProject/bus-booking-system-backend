@@ -7,10 +7,10 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
-@Data
-@Builder
-public class BookingResponse {
-    private UUID bookingId;
+@Data @Builder
+public class TicketResponse {
+    private UUID ticketId; // Đổi bookingId -> ticketId
+    private String ticketCode;
     private UUID tripId;
     private String status;
     private List<String> seats;
@@ -19,8 +19,7 @@ public class BookingResponse {
     private LocalDateTime lockedUntil;
     private LocalDateTime createdAt;
 
-    @Data
-    @Builder
+    @Data @Builder
     public static class PricingDto {
         private BigDecimal subtotal;
         private BigDecimal serviceFee;

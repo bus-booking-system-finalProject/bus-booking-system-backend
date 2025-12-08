@@ -6,10 +6,9 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-@Data
-@Builder
-public class BookingCancelResponse {
-    private UUID bookingId;
+@Data @Builder
+public class TicketCancelResponse {
+    private UUID ticketId;
     private String status;
     private RefundDto refund;
     private LocalDateTime cancelledAt;

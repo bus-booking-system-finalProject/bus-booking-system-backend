@@ -7,11 +7,10 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
-@Data
-@Builder
-public class BookingHistoryResponse {
-    private UUID bookingId;
-    private String bookingReference;
+@Data @Builder
+public class TicketHistoryResponse {
+    private UUID ticketId;
+    private String ticketCode;
     private TripSummaryDto trip;
     private List<String> seats;
     private BigDecimal totalAmount;
