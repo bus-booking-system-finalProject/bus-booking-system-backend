@@ -16,9 +16,9 @@ public class Ticket {
     private UUID id;
 
     @Column(unique = true)
-    private String ticketCode; // Đổi bookingReference -> ticketCode
+    private String ticketCode; 
 
-    private String userId; // Email user
+    private String userEmail; 
     
     @ManyToOne
     @JoinColumn(name = "trip_id")

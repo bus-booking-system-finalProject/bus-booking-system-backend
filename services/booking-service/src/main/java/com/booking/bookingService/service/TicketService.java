@@ -48,7 +48,7 @@ public class TicketService {
 
         Ticket ticket = Ticket.builder()
                 .ticketCode("TK" + System.currentTimeMillis())
-                .userId(userEmail)
+                .userEmail(userEmail)
                 .trip(trip)
                 .contactName(request.getContactName())
                 .contactEmail(request.getContactEmail())
@@ -85,8 +85,9 @@ public class TicketService {
                 .orElseThrow(() -> new ResourceNotFoundException("Ticket not found"));
 
         // Security check if needed
-        if (userEmail != null && !userEmail.equals(ticket.getUserId())) {
+        if (userEmail != null && !userEmail.equals(ticket.getUserEmail())) {
              // throw exception
+            throw new ResourceNotFoundException("Ticket not found");
         }
         
         // Lazy Check Expired
@@ -149,7 +150,7 @@ public class TicketService {
 
         Specification<Ticket> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
-            predicates.add(cb.equal(root.get("userId"), userEmail));
+            predicates.add(cb.equal(root.get("userEmail"), userEmail));
             if (status != null) predicates.add(cb.equal(root.get("status"), status));
             if (fromDateTime != null) predicates.add(cb.greaterThanOrEqualTo(root.get("createdAt"), fromDateTime));
             if (toDateTime != null) predicates.add(cb.lessThanOrEqualTo(root.get("createdAt"), toDateTime));
@@ -210,7 +211,7 @@ public class TicketService {
         return TicketDetailResponse.builder()
                 .ticketId(ticket.getId())
                 .ticketCode(ticket.getTicketCode())
-                .userId(ticket.getUserId())
+                .userEmail(ticket.getUserEmail())
 
                 .contactName(ticket.getContactName())
                 .contactEmail(ticket.getContactEmail())

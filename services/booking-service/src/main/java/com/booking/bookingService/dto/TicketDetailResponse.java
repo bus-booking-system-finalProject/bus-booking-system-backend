@@ -11,7 +11,7 @@ import java.util.UUID;
 public class TicketDetailResponse {
     private UUID ticketId;
     private String ticketCode;
-    private String userId;
+    private String userEmail;
 
     private String contactName;
     private String contactEmail;
