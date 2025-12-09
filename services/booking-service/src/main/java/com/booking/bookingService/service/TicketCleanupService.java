@@ -1,9 +1,11 @@
 package com.booking.bookingService.service;
 
 import com.booking.bookingService.model.Ticket;
+import com.booking.bookingService.model.Trip;
 import com.booking.bookingService.model.TripSeat;
 import com.booking.bookingService.repository.TicketRepository;
 import com.booking.bookingService.repository.TripSeatRepository;
+import com.booking.bookingService.repository.TripRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -20,6 +22,7 @@ public class TicketCleanupService {
 
     private final TicketRepository ticketRepository;
     private final TripSeatRepository seatStatusRepository;
+    private final TripRepository tripRepository;
     private final RedisLockService redisLockService;
 
     // Chạy mỗi 1 phút (60000ms) để quét vé hết hạn
@@ -61,6 +64,14 @@ public class TicketCleanupService {
                     }
                     // Lưu thay đổi trạng thái ghế
                     seatStatusRepository.saveAll(lockedSeats);
+                }
+
+                Trip trip = ticket.getTrip();
+                // Đảm bảo không cộng vượt quá sức chứa (phòng hờ)
+                int newAvailable = trip.getAvailableSeats() + seatCodes.size();
+                if (newAvailable <= trip.getBus().getSeatCapacity()) {
+                    trip.setAvailableSeats(newAvailable);
+                    tripRepository.save(trip);
                 }
                 
             } catch (Exception e) {

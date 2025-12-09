@@ -41,6 +41,15 @@ public class TicketService {
         String userIdForLock = userEmail != null ? userEmail : "GUEST-" + UUID.randomUUID();
         holdSeatsInternal(trip.getId(), request.getSeats(), userIdForLock);
 
+        // Kiểm tra logic số lượng (Double check)
+        if (trip.getAvailableSeats() < request.getSeats().size()) {
+            throw new IllegalStateException("Not enough seats available");
+        }
+
+        // Cập nhật số lượng ghế trống của Trip
+        trip.setAvailableSeats(trip.getAvailableSeats() - request.getSeats().size());
+        tripRepository.save(trip); // Lưu Trip đã update
+
         BigDecimal pricePerTicket = trip.getPrice();
         BigDecimal subtotal = pricePerTicket.multiply(BigDecimal.valueOf(request.getSeats().size()));
         BigDecimal serviceFee = BigDecimal.valueOf(20000);
@@ -113,6 +122,11 @@ public class TicketService {
         }
 
         releaseSeats(ticket.getTrip().getId(), ticket.getSeats());
+
+        // Hoàn lại số lượng ghế trống cho Trip
+        Trip trip = ticket.getTrip();
+        trip.setAvailableSeats(trip.getAvailableSeats() + ticket.getSeats().size());
+        tripRepository.save(trip);
 
         ticket.setStatus(Ticket.TicketStatus.CANCELLED);
         ticket.setCancelledAt(LocalDateTime.now());
