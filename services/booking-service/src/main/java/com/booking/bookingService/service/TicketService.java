@@ -114,6 +114,14 @@ public class TicketService {
         // 1. SECURITY CHECK: User có thực sự đang giữ ghế không?
         validateLockOwnership(trip.getId(), request.getSeats(), lockOwnerId);
 
+        if (trip.getAvailableSeats() < request.getSeats().size()) {
+            throw new IllegalStateException("Not enough seats available");
+        }
+
+        // Cập nhật số lượng ghế trống của Trip
+        trip.setAvailableSeats(trip.getAvailableSeats() - request.getSeats().size());
+        tripRepository.save(trip); // Lưu Trip đã update
+
         // 2. Tính toán tiền
         BigDecimal pricePerTicket = trip.getPrice();
         BigDecimal subtotal = pricePerTicket.multiply(BigDecimal.valueOf(request.getSeats().size()));
@@ -284,6 +292,10 @@ public class TicketService {
         }
 
         releaseSeats(ticket.getTrip().getId(), ticket.getSeats());
+
+        Trip trip = ticket.getTrip();
+        trip.setAvailableSeats(trip.getAvailableSeats() + ticket.getSeats().size());
+        tripRepository.save(trip);
 
         ticket.setStatus(Ticket.TicketStatus.CANCELLED);
         ticket.setCancelledAt(LocalDateTime.now());
