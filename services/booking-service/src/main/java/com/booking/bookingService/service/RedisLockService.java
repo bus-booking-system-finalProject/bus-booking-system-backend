@@ -30,12 +30,13 @@ public class RedisLockService {
         redisTemplate.delete(key);
     }
 
-    public boolean isLocked(String key) {
-    return Boolean.TRUE.equals(redisTemplate.hasKey(key));
-}
-    
-    // Gia hạn lock nếu cần (cho bước thanh toán)
-    public void extendLock(String key, long timeout) {
-        redisTemplate.expire(key, timeout, TimeUnit.SECONDS);
+    // Lấy ID người đang giữ lock (để check xem có phải chính user đó không)
+    public String getLockOwner(String key) {
+        return redisTemplate.opsForValue().get(key);
+    }
+
+    // Gia hạn thời gian lock (dùng khi user đang điền form hoặc vừa tạo vé xong)
+    public void refreshLock(String key, long timeoutSeconds) {
+        redisTemplate.expire(key, timeoutSeconds, TimeUnit.SECONDS);
     }
 }

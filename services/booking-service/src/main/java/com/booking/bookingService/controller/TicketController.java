@@ -1,5 +1,6 @@
 package com.booking.bookingService.controller;
 
+import com.booking.bookingService.dto.SeatLockRequest; // Import DTO mới
 import com.booking.bookingService.dto.TicketRequest;
 import com.booking.bookingService.dto.CancelTicketRequest;
 import com.booking.bookingService.service.TicketService;
@@ -27,16 +28,57 @@ public class TicketController {
 
     private final TicketService ticketService;
 
+    // --- API 1: LOCK SEATS (Chọn ghế) ---
+    @PostMapping("/lock")
+    public ResponseEntity<?> lockSeats(
+            @Valid @RequestBody SeatLockRequest request,
+            @AuthenticationPrincipal UserDetails currentUser
+    ) {
+        String userEmail = (currentUser != null) ? currentUser.getUsername() : null;
+        
+        // Gọi service để lock ghế. Nếu ghế đã bị lock bởi người khác, 
+        // service sẽ throw Exception (Global Exception Handler sẽ bắt lỗi này)
+        ticketService.lockSeats(request, userEmail);
+
+        return ResponseEntity.ok(Map.of(
+            "success", true,
+            "message", "Seats locked successfully"
+        ));
+    }
+
+    // --- API 2: UNLOCK SEATS (Bỏ chọn ghế) ---
+    @PostMapping("/unlock")
+    public ResponseEntity<?> unlockSeats(
+            @RequestBody SeatLockRequest request,
+            @AuthenticationPrincipal UserDetails currentUser
+    ) {
+        String userEmail = (currentUser != null) ? currentUser.getUsername() : null;
+        
+        ticketService.unlockSeats(request, userEmail);
+
+        return ResponseEntity.ok(Map.of(
+            "success", true,
+            "message", "Seats unlocked successfully"
+        ));
+    }
+
+    // --- API 3: CREATE TICKET (Xác nhận đặt vé) ---
     @PostMapping
     public ResponseEntity<?> createTicket(
             @Valid @RequestBody TicketRequest request,
             @AuthenticationPrincipal UserDetails currentUser
     ) {
         String userEmail = null;
+        
+        // Logic xác định userEmail
         if (!request.isGuestCheckout()) {
-            if (currentUser == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            if (currentUser == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            }
             userEmail = currentUser.getUsername();
-        }
+        } 
+        
+        // Service sẽ dùng userEmail (nếu có) HOẶC sessionId trong request để đối chiếu lock
         return new ResponseEntity<>(ticketService.createTicket(request, userEmail), HttpStatus.CREATED);
     }
 
