@@ -8,6 +8,8 @@ import lombok.Data;
 import java.util.List;
 import java.util.UUID;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 @Data
 public class TicketRequest {
     @NotNull(message = "Trip ID is required")
@@ -25,5 +27,6 @@ public class TicketRequest {
     @NotBlank(message = "Contact phone is required")
     private String contactPhone;
 
+    @JsonProperty("isGuestCheckout")
     private boolean isGuestCheckout;
 }

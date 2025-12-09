@@ -22,12 +22,9 @@ import java.util.List;
 @Component
 public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
 
-    // Ensure this key matches the one in User Service!
-    // Best practice: Load this from Config Server
     @Value("${jwt.secret-key}")
     private String secretKey;
 
-    // Endpoints that do NOT require authentication
     @Value("${app.security.public-endpoints}")
     private List<String> publicEndpoints;
 
@@ -37,45 +34,57 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         String path = exchange.getRequest().getURI().getPath();
 
-        // 1. Skip validation for public endpoints
+        // 1. Kiểm tra xem request này có phải là Public không
         boolean isPublic = publicEndpoints.stream()
                 .anyMatch(pattern -> pathMatcher.match(pattern, path));
 
-        if (isPublic) {
-            return chain.filter(exchange);
+        // 2. Kiểm tra xem Request có mang theo Token không
+        List<String> authHeaders = exchange.getRequest().getHeaders().get(HttpHeaders.AUTHORIZATION);
+        String token = null;
+        if (authHeaders != null && !authHeaders.isEmpty()) {
+            String headerValue = authHeaders.get(0);
+            if (headerValue != null && headerValue.startsWith("Bearer ")) {
+                token = headerValue.substring(7);
+            }
         }
 
-        // 2. Check for Authorization header
-        if (!exchange.getRequest().getHeaders().containsKey(HttpHeaders.AUTHORIZATION)) {
-            return onError(exchange, HttpStatus.UNAUTHORIZED);
+        // TRƯỜNG HỢP 1: Không có Token
+        if (token == null) {
+            if (isPublic) {
+                // Nếu là Public -> Cho qua (Guest mode)
+                return chain.filter(exchange);
+            } else {
+                // Nếu là Private -> Bắt buộc Login -> Lỗi 401
+                return onError(exchange, HttpStatus.UNAUTHORIZED);
+            }
         }
 
-        String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            return onError(exchange, HttpStatus.UNAUTHORIZED);
-        }
-
-        String token = authHeader.substring(7);
-
+        // TRƯỜNG HỢP 2: Có Token -> Thử Validate
         try {
-            // 3. Validate Token & Extract Claims
             Claims claims = Jwts.parser()
                     .verifyWith(getSignInKey())
                     .build()
                     .parseSignedClaims(token)
                     .getPayload();
 
-            // 4. Mutate Request: Add headers for downstream services
-            // Downstream services will read these headers instead of parsing the JWT again
+            // Nếu Token ngon -> Gắn thông tin vào Header
             ServerHttpRequest request = exchange.getRequest().mutate()
-                    .header("X-User-Email", claims.getSubject()) // Send email/username
-                    .header("X-User-Role", claims.get("role", String.class)) // Send role
+                    .header("X-User-Email", claims.getSubject())
+                    .header("X-User-Role", claims.get("role", String.class))
                     .build();
 
             return chain.filter(exchange.mutate().request(request).build());
 
         } catch (Exception e) {
-            // Token invalid or expired
+            // Token bị lỗi (Hết hạn hoặc Fake)
+            
+            if (isPublic) {
+                // QUAN TRỌNG: Nếu là endpoint public, dù token lỗi vẫn cho qua 
+                // (coi như user đó là Guest)
+                return chain.filter(exchange);
+            }
+            
+            // Nếu là private endpoint mà token lỗi -> Chặn 401
             return onError(exchange, HttpStatus.UNAUTHORIZED);
         }
     }
@@ -92,6 +101,6 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
 
     @Override
     public int getOrder() {
-        return -1; // High priority
+        return -1;
     }
 }
