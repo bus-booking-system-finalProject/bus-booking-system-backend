@@ -43,7 +43,7 @@ public class TicketService {
 
         // 1. Validate Trip
         if (!tripRepository.existsById(request.getTripId())) {
-            throw new ResourceNotFoundException("Chuyến đi không tồn tại");
+            throw new ResourceNotFoundException("Trip does not exist");
         }
 
         List<String> successfullyLockedKeys = new ArrayList<>();
@@ -60,7 +60,7 @@ public class TicketService {
                     // Nếu không lock được, kiểm tra xem có phải chính mình đang lock không (trường hợp F5 lại)
                     String currentOwner = redisLockService.getLockOwner(key);
                     if (!lockOwnerId.equals(currentOwner)) {
-                        throw new IllegalStateException("Ghế " + seatCode + " đang được giữ bởi người khác.");
+                        throw new IllegalStateException("Seat " + seatCode + " is being held by another user.");
                     }
                     // Nếu là chính mình, gia hạn thêm thời gian
                     redisLockService.refreshLock(key, LOCK_TIMEOUT_SECONDS);
@@ -193,12 +193,12 @@ public class TicketService {
                 .collect(Collectors.toList());
 
         if (targetStatuses.size() != seatCodes.size()) {
-            throw new ResourceNotFoundException("Một số ghế không hợp lệ");
+            throw new ResourceNotFoundException("Some seats are invalid");
         }
 
         for (TripSeat ts : targetStatuses) {
             if (ts.getStatus() == TripSeat.Status.BOOKED) {
-                throw new IllegalStateException("Ghế " + ts.getSeat().getSeatCode() + " đã bán.");
+                throw new IllegalStateException("Seat " + ts.getSeat().getSeatCode() + " has already been sold.");
             }
             ts.setStatus(status);
         }
@@ -222,10 +222,10 @@ public class TicketService {
             String currentOwner = redisLockService.getLockOwner(key);
 
             if (currentOwner == null) {
-                throw new IllegalStateException("Hết thời gian giữ ghế " + seatCode + ". Vui lòng chọn lại.");
+                throw new IllegalStateException("Seat " + seatCode + " lock has expired. Please select again.");
             }
             if (!currentOwner.equals(ownerId)) {
-                throw new IllegalStateException("Ghế " + seatCode + " đã bị người khác lấy mất.");
+                throw new IllegalStateException("Seat " + seatCode + " has been taken by another user.");
             }
         }
     }
@@ -248,7 +248,7 @@ public class TicketService {
         if (sessionId != null && !sessionId.isEmpty()) {
             return sessionId;
         }
-        throw new IllegalArgumentException("Cần có thông tin User Email hoặc Session ID");
+        throw new IllegalArgumentException("User Email or Session ID is required");
     }
 
     public TicketDetailResponse getTicketDetail(UUID ticketId, String userEmail) {
@@ -338,7 +338,7 @@ public class TicketService {
             for (String seatCode : seatCodes) {
                 String key = "lock:seat:" + tripId + ":" + seatCode;
                 boolean acquired = redisLockService.tryLock(key, userId, LOCK_TIMEOUT_SECONDS);
-                if (!acquired) throw new IllegalStateException("Ghế " + seatCode + " đang được người khác chọn.");
+                if (!acquired) throw new IllegalStateException("Seat " + seatCode + " is being selected by another user.");
                 lockedKeys.add(key);
             }
 
@@ -347,11 +347,11 @@ public class TicketService {
                     .filter(s -> seatCodes.contains(s.getSeat().getSeatCode()))
                     .collect(Collectors.toList());
 
-            if (targetStatuses.size() != seatCodes.size()) throw new ResourceNotFoundException("Ghế không hợp lệ");
+            if (targetStatuses.size() != seatCodes.size()) throw new ResourceNotFoundException("Invalid seat");
 
             for (TripSeat status : targetStatuses) {
                 if (status.getStatus() == TripSeat.Status.BOOKED) {
-                    throw new IllegalStateException("Ghế " + status.getSeat().getSeatCode() + " đã được bán.");
+                    throw new IllegalStateException("Seat " + status.getSeat().getSeatCode() + " has already been sold.");
                 }
                 status.setStatus(TripSeat.Status.LOCKED);
             }
