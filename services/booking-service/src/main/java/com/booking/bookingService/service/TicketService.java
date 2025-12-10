@@ -5,6 +5,7 @@ import com.booking.bookingService.exception.ResourceNotFoundException;
 import com.booking.bookingService.model.*;
 import com.booking.bookingService.repository.*;
 import jakarta.persistence.criteria.Predicate;
+import jakarta.ws.rs.ForbiddenException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -395,6 +396,88 @@ public class TicketService {
                         .route(ticket.getTrip().getRoute().getOrigin() + " → " + ticket.getTrip().getRoute().getDestination())
                         .departureTime(ticket.getTrip().getDepartureTime())
                         .operator(ticket.getTrip().getOperator().getName())
+                        .build())
+                .build();
+    }
+
+    /**
+     * Finds a guest booking using a unique reference code and verification value (phone or email).
+     * @param request The guest lookup request DTO.
+     * @return Aggregated TicketResponse for the booking.
+     */
+    @Transactional(readOnly = true)
+    public TicketLookupResponse lookupGuestTicket(GuestLookupRequest request) {
+        String reference = request.getTicketCode().toUpperCase().trim();
+        String verification = request.getVerificationValue().trim();
+
+        // 1. Find the representative ticket (fast fail if not found)
+        Ticket representativeTicket = ticketRepository.findFirstByTicketCode(reference)
+                .orElseThrow(() -> new ResourceNotFoundException("Booking not found for reference: " + reference));
+
+        // 2. Perform verification (Security Check)
+        boolean verified = verification.equalsIgnoreCase(representativeTicket.getContactEmail()) ||
+                           verification.equalsIgnoreCase(representativeTicket.getContactPhone());
+
+        if (representativeTicket.getUserEmail() != null) {
+            throw new ForbiddenException("This booking belongs to a registered user and must be retrieved via the user portal.");
+        }
+
+        if (!verified) {
+            throw new ForbiddenException("Verification failed. Phone number or email does not match the booking.");
+        }
+
+        // 3. Aggregate all tickets sharing this reference
+        // (Assuming future support for split tickets, or simply finding the single ticket by unique code)
+        List<Ticket> allTickets = ticketRepository.findAll().stream()
+                .filter(t -> reference.equals(t.getTicketCode()))
+                .collect(Collectors.toList());
+
+        if (allTickets.isEmpty()) {
+             throw new ResourceNotFoundException("No tickets found for booking reference: " + reference);
+        }
+
+        // 4. Pass the LIST to the mapper (Fixes the error)
+        return mapToTicketResponse(allTickets);
+    }
+
+    private TicketLookupResponse mapToTicketResponse(List<Ticket> tickets) {
+        // Use the first ticket for shared data (Trip, Contact, Route)
+        Ticket representative = tickets.get(0);
+        Trip trip = representative.getTrip();
+        String routeName = trip.getRoute().getOrigin() + " - " + trip.getRoute().getDestination();
+
+        // Aggregate seats from all tickets
+        List<String> allSeats = tickets.stream()
+                .flatMap(t -> t.getSeats().stream())
+                .distinct()
+                .collect(Collectors.toList());
+
+        // Aggregate total price
+        BigDecimal totalAmount = tickets.stream()
+                .map(Ticket::getTotalAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        return TicketLookupResponse.builder()
+                .ticketId(representative.getId())
+                .ticketCode(representative.getTicketCode())
+                .status(representative.getStatus().name().toLowerCase())
+                .seats(allSeats) // All seats combined
+                .contactName(representative.getContactName())
+                .contactEmail(representative.getContactEmail())
+                .contactPhone(representative.getContactPhone())
+                .createdAt(representative.getCreatedAt())
+                
+                .pricing(TicketLookupResponse.PricingDto.builder()
+                        .total(totalAmount)
+                        .currency("VND")
+                        .build())
+                
+                .tripDetails(TicketLookupResponse.TripDetailsDto.builder()
+                        .tripId(trip.getId())
+                        .route(routeName)
+                        .operator(trip.getOperator().getName())
+                        .departureTime(trip.getDepartureTime())
+                        .arrivalTime(trip.getArrivalTime())
                         .build())
                 .build();
     }
