@@ -38,9 +38,9 @@ public class TicketService {
     // =================================================================
 
     @Transactional
-    public void lockSeats(SeatLockRequest request, String userEmail) {
+    public void lockSeats(SeatLockRequest request) {
         // Xác định ai là người giữ lock (User login hoặc Guest session)
-        String lockOwnerId = determineOwnerId(userEmail, request.getSessionId());
+        String lockOwnerId = determineOwnerId(request.getSessionId());
 
         // 1. Validate Trip
         if (!tripRepository.existsById(request.getTripId())) {
@@ -85,8 +85,8 @@ public class TicketService {
     }
 
     @Transactional
-    public void unlockSeats(SeatLockRequest request, String userEmail) {
-        String lockOwnerId = determineOwnerId(userEmail, request.getSessionId());
+    public void unlockSeats(SeatLockRequest request) {
+        String lockOwnerId = determineOwnerId(request.getSessionId());
 
         for (String seatCode : request.getSeats()) {
             String key = generateSeatLockKey(request.getTripId(), seatCode);
@@ -107,7 +107,7 @@ public class TicketService {
     // =================================================================
     @Transactional
     public TicketResponse createTicket(TicketRequest request, String userEmail) {
-        String lockOwnerId = determineOwnerId(userEmail, request.getSessionId());
+        String lockOwnerId = determineOwnerId(request.getSessionId());
 
         Trip trip = tripRepository.findById(request.getTripId())
                 .orElseThrow(() -> new ResourceNotFoundException("Trip not found"));
@@ -246,14 +246,12 @@ public class TicketService {
         return "lock:seat:" + tripId + ":" + seatCode;
     }
 
-    private String determineOwnerId(String userEmail, String sessionId) {
-        if (userEmail != null && !userEmail.isEmpty()) {
-            return userEmail;
-        }
+    private String determineOwnerId(String sessionId) {
+        // Chỉ dùng Session ID để làm key lock (bất kể user đã login hay chưa)
         if (sessionId != null && !sessionId.isEmpty()) {
             return sessionId;
         }
-        throw new IllegalArgumentException("User Email or Session ID is required");
+        throw new IllegalArgumentException("Session ID is required");
     }
 
     public TicketDetailResponse getTicketDetail(UUID ticketId, String userEmail) {

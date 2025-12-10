@@ -36,11 +36,10 @@ public class TicketController {
             @Valid @RequestBody SeatLockRequest request,
             @AuthenticationPrincipal UserDetails currentUser
     ) {
-        String userEmail = (currentUser != null) ? currentUser.getUsername() : null;
         
         // Gọi service để lock ghế. Nếu ghế đã bị lock bởi người khác, 
         // service sẽ throw Exception (Global Exception Handler sẽ bắt lỗi này)
-        ticketService.lockSeats(request, userEmail);
+        ticketService.lockSeats(request);
 
         return ResponseEntity.ok(Map.of(
             "success", true,
@@ -54,9 +53,8 @@ public class TicketController {
             @RequestBody SeatLockRequest request,
             @AuthenticationPrincipal UserDetails currentUser
     ) {
-        String userEmail = (currentUser != null) ? currentUser.getUsername() : null;
         
-        ticketService.unlockSeats(request, userEmail);
+        ticketService.unlockSeats(request);
 
         return ResponseEntity.ok(Map.of(
             "success", true,
