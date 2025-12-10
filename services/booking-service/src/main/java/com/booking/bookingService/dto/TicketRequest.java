@@ -27,6 +27,14 @@ public class TicketRequest {
     @NotBlank(message = "Contact phone is required")
     private String contactPhone;
 
+    /**
+     * Quan trọng: Session ID dùng để đối chiếu với Redis Lock.
+     * - Nếu là Guest: Bắt buộc phải gửi lên (trùng với sessionId lúc gọi API lock).
+     * - Nếu là User đã login: Có thể null (Backend sẽ dùng email từ Security Context), 
+     * nhưng tốt nhất Frontend cứ gửi kèm sessionId thống nhất cho cả 2 luồng.
+     */
+    private String sessionId;
+    
     @JsonProperty("isGuestCheckout")
     private boolean isGuestCheckout;
 }

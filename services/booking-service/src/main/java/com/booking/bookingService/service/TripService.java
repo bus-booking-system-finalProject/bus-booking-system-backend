@@ -279,7 +279,7 @@ public class TripService {
             if (status.getStatus() == TripSeat.Status.LOCKED) {
                 String redisKey = "lock:seat:" + tripId + ":" + status.getSeat().getSeatCode();
 
-                if (!redisLockService.isLocked(redisKey)) {
+                if (redisLockService.getLockOwner(redisKey) == null) {
                     status.setStatus(TripSeat.Status.AVAILABLE);
                     expiredSeats.add(status);
                     hasChanges = true;

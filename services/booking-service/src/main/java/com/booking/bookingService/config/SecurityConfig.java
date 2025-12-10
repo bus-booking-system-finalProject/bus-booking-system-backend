@@ -23,36 +23,33 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
             .csrf(AbstractHttpConfigurer::disable)
-            
-            // 1. QUAN TRỌNG: Không lưu Session (Stateless) vì đã dùng JWT từ Gateway
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            
             .addFilterBefore(gatewayAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
             
             .authorizeHttpRequests(auth -> auth
-                // 2. Cho phép CORS Preflight (tránh lỗi khi gọi từ React/Frontend)
+                // 1. Cấu hình cơ bản
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-
-                // 3. FIX LỖI 401 ẢO: Cho phép Spring forward lỗi (Validation, 404, 500) ra ngoài
                 .requestMatchers("/error").permitAll()
                 .dispatcherTypeMatchers(DispatcherType.FORWARD, DispatcherType.ERROR).permitAll()
 
-                // 4. LOGIC VÉ (TICKET):
-                // a. Guest tạo vé (POST /tickets) -> Public
+                // 2. LOGIC VÉ (TICKET) - QUAN TRỌNG:
+                // a. Guest Lock & Unlock ghế (Mới thêm) -> Phải khai báo rõ ràng
+                .requestMatchers(HttpMethod.POST, "/tickets/lock", "/tickets/unlock").permitAll()
+
+                // b. Guest tạo vé (Submit form) -> POST /tickets
                 .requestMatchers(HttpMethod.POST, "/tickets").permitAll()
 
-                // b. Guest hủy vé (PUT /tickets/{uuid}/cancel) -> Public
+                // c. Guest hủy vé (PUT /tickets/{uuid}/cancel)
                 .requestMatchers(HttpMethod.PUT, "/tickets/**").permitAll()
 
-                // c. Guest xem chi tiết vé (GET /tickets/{uuid}) -> Public
-                // Sử dụng Regex để chỉ khớp nếu đó là UUID, tránh nhầm với GET /tickets (lịch sử)
+                // d. Guest xem chi tiết vé (GET /tickets/{uuid})
+                // Chỉ khớp UUID để tránh trùng với trang lịch sử (GET /tickets)
                 .requestMatchers(HttpMethod.GET, "/tickets/{id:[0-9a-fA-F-]{36}}").permitAll()
 
-                // 5. MASTER DATA (Chuyến xe, Nhà xe, Tuyến đường...) -> Public
+                // 3. MASTER DATA
                 .requestMatchers("/trips/**", "/buses/**", "/routes/**", "/operators/**").permitAll()
 
-                // 6. CÁC API CÒN LẠI -> BẮT BUỘC ĐĂNG NHẬP
-                // (Bao gồm API: GET /tickets để xem lịch sử đặt vé)
+                // 4. API CÒN LẠI -> Cần đăng nhập (Bao gồm xem lịch sử GET /tickets)
                 .anyRequest().authenticated()
             );
 

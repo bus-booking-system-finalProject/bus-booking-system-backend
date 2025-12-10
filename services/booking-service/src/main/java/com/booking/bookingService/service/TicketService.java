@@ -32,16 +32,88 @@ public class TicketService {
     // private final SeatRepository seatRepository;
 
     private static final long LOCK_TIMEOUT_SECONDS = 600;
+    // =================================================================
+    // PHASE 1: LOCK / UNLOCK SEATS (Real-time interactions)
+    // =================================================================
 
     @Transactional
+    public void lockSeats(SeatLockRequest request, String userEmail) {
+        // Xác định ai là người giữ lock (User login hoặc Guest session)
+        String lockOwnerId = determineOwnerId(userEmail, request.getSessionId());
+
+        // 1. Validate Trip
+        if (!tripRepository.existsById(request.getTripId())) {
+            throw new ResourceNotFoundException("Trip does not exist");
+        }
+
+        List<String> successfullyLockedKeys = new ArrayList<>();
+
+        try {
+            // 2. Redis Locking Process
+            for (String seatCode : request.getSeats()) {
+                String key = generateSeatLockKey(request.getTripId(), seatCode);
+                
+                // Cố gắng lock
+                boolean acquired = redisLockService.tryLock(key, lockOwnerId, LOCK_TIMEOUT_SECONDS);
+                
+                if (!acquired) {
+                    // Nếu không lock được, kiểm tra xem có phải chính mình đang lock không (trường hợp F5 lại)
+                    String currentOwner = redisLockService.getLockOwner(key);
+                    if (!lockOwnerId.equals(currentOwner)) {
+                        throw new IllegalStateException("Seat " + seatCode + " is being held by another user.");
+                    }
+                    // Nếu là chính mình, gia hạn thêm thời gian
+                    redisLockService.refreshLock(key, LOCK_TIMEOUT_SECONDS);
+                }
+                successfullyLockedKeys.add(key);
+            }
+
+            // 3. Update Database Status -> LOCKED
+            updateSeatStatusInDb(request.getTripId(), request.getSeats(), TripSeat.Status.LOCKED);
+
+        } catch (Exception e) {
+            // Rollback: Nếu lỗi, nhả các ghế đã lỡ lock trong Redis
+            for (String key : successfullyLockedKeys) {
+                // Chỉ unlock nếu mình là owner (an toàn)
+                if (lockOwnerId.equals(redisLockService.getLockOwner(key))) {
+                    redisLockService.unlock(key);
+                }
+            }
+            throw e; // Ném lỗi ra để Controller bắt
+        }
+    }
+
+    @Transactional
+    public void unlockSeats(SeatLockRequest request, String userEmail) {
+        String lockOwnerId = determineOwnerId(userEmail, request.getSessionId());
+
+        for (String seatCode : request.getSeats()) {
+            String key = generateSeatLockKey(request.getTripId(), seatCode);
+            String currentOwner = redisLockService.getLockOwner(key);
+
+            // Chỉ cho phép unlock nếu đúng là chính chủ
+            if (lockOwnerId.equals(currentOwner)) {
+                redisLockService.unlock(key);
+            }
+        }
+
+        // Update Database Status -> AVAILABLE (Chỉ revert nếu chưa bán)
+        revertSeatStatusToAvailable(request.getTripId(), request.getSeats());
+    }
+
+    // =================================================================
+    // PHASE 2: CREATE TICKET (Finalize Booking)
+    // =================================================================
+    @Transactional
     public TicketResponse createTicket(TicketRequest request, String userEmail) {
+        String lockOwnerId = determineOwnerId(userEmail, request.getSessionId());
+
         Trip trip = tripRepository.findById(request.getTripId())
                 .orElseThrow(() -> new ResourceNotFoundException("Trip not found"));
 
-        String userIdForLock = userEmail != null ? userEmail : "GUEST-" + UUID.randomUUID();
-        holdSeatsInternal(trip.getId(), request.getSeats(), userIdForLock);
+        // 1. SECURITY CHECK: User có thực sự đang giữ ghế không?
+        validateLockOwnership(trip.getId(), request.getSeats(), lockOwnerId);
 
-        // Kiểm tra logic số lượng (Double check)
         if (trip.getAvailableSeats() < request.getSeats().size()) {
             throw new IllegalStateException("Not enough seats available");
         }
@@ -50,14 +122,14 @@ public class TicketService {
         trip.setAvailableSeats(trip.getAvailableSeats() - request.getSeats().size());
         tripRepository.save(trip); // Lưu Trip đã update
 
+        // 2. Tính toán tiền
         BigDecimal pricePerTicket = trip.getPrice();
-        BigDecimal subtotal = pricePerTicket.multiply(BigDecimal.valueOf(request.getSeats().size()));
-        BigDecimal serviceFee = BigDecimal.valueOf(20000);
-        BigDecimal total = subtotal.add(serviceFee);
+        BigDecimal total = pricePerTicket.multiply(BigDecimal.valueOf(request.getSeats().size()));
 
+        // 3. Tạo Ticket
         Ticket ticket = Ticket.builder()
                 .ticketCode("TK" + System.currentTimeMillis())
-                .userEmail(userEmail)
+                .userEmail(userEmail) // Có thể null
                 .trip(trip)
                 .contactName(request.getContactName())
                 .contactEmail(request.getContactEmail())
@@ -65,11 +137,15 @@ public class TicketService {
                 .totalAmount(total)
                 .status(Ticket.TicketStatus.PENDING)
                 .createdAt(LocalDateTime.now())
+                // Gia hạn lock thêm 10 phút để thanh toán
                 .lockedUntil(LocalDateTime.now().plusSeconds(LOCK_TIMEOUT_SECONDS))
                 .seats(request.getSeats())
                 .build();
 
         ticketRepository.save(ticket);
+
+        // 4. Quan trọng: Refresh Redis Lock để user có thời gian thanh toán
+        refreshLocks(trip.getId(), request.getSeats(), LOCK_TIMEOUT_SECONDS);
 
         return TicketResponse.builder()
                 .ticketId(ticket.getId())
@@ -79,14 +155,104 @@ public class TicketService {
                 .seats(ticket.getSeats())
                 .passengers(ticket.getSeats().size())
                 .pricing(TicketResponse.PricingDto.builder()
-                        .subtotal(subtotal)
-                        .serviceFee(serviceFee)
                         .total(total)
                         .currency("VND")
                         .build())
                 .lockedUntil(ticket.getLockedUntil())
                 .createdAt(ticket.getCreatedAt())
                 .build();
+    }
+
+    // =================================================================
+    // UTILITIES & HELPERS
+    // =================================================================
+    
+    // API này dùng để lấy danh sách ghế hiển thị lên UI
+    // Nó bao gồm logic "Lazy Sync": Nếu Redis hết hạn mà DB vẫn Locked -> Reset về Available
+    public List<TripSeat> getTripSeatsAndSync(UUID tripId) {
+        List<TripSeat> seats = seatStatusRepository.findByTripId(tripId);
+        List<TripSeat> seatsToUpdate = new ArrayList<>();
+
+        for (TripSeat seat : seats) {
+            if (seat.getStatus() == TripSeat.Status.LOCKED) {
+                String key = generateSeatLockKey(tripId, seat.getSeat().getSeatCode());
+                // Kiểm tra Redis, nếu key không còn tồn tại -> Lock đã hết hạn
+                if (redisLockService.getLockOwner(key) == null) {
+                    seat.setStatus(TripSeat.Status.AVAILABLE);
+                    seatsToUpdate.add(seat);
+                }
+            }
+        }
+
+        if (!seatsToUpdate.isEmpty()) {
+            seatStatusRepository.saveAll(seatsToUpdate);
+        }
+        return seats;
+    }
+
+    private void updateSeatStatusInDb(UUID tripId, List<String> seatCodes, TripSeat.Status status) {
+        List<TripSeat> allStatuses = seatStatusRepository.findByTripId(tripId);
+        List<TripSeat> targetStatuses = allStatuses.stream()
+                .filter(s -> seatCodes.contains(s.getSeat().getSeatCode()))
+                .collect(Collectors.toList());
+
+        if (targetStatuses.size() != seatCodes.size()) {
+            throw new ResourceNotFoundException("Some seats are invalid");
+        }
+
+        for (TripSeat ts : targetStatuses) {
+            if (ts.getStatus() == TripSeat.Status.BOOKED) {
+                throw new IllegalStateException("Seat " + ts.getSeat().getSeatCode() + " has already been sold.");
+            }
+            ts.setStatus(status);
+        }
+        seatStatusRepository.saveAll(targetStatuses);
+    }
+
+    private void revertSeatStatusToAvailable(UUID tripId, List<String> seatCodes) {
+        List<TripSeat> statuses = seatStatusRepository.findByTripIdAndSeat_SeatCodeIn(tripId, seatCodes);
+        statuses.forEach(s -> {
+            // Chỉ revert về AVAILABLE nếu nó chưa bị BOOKED (tránh lỗi logic)
+            if (s.getStatus() != TripSeat.Status.BOOKED) {
+                s.setStatus(TripSeat.Status.AVAILABLE);
+            }
+        });
+        seatStatusRepository.saveAll(statuses);
+    }
+
+    private void validateLockOwnership(UUID tripId, List<String> seatCodes, String ownerId) {
+        for (String seatCode : seatCodes) {
+            String key = generateSeatLockKey(tripId, seatCode);
+            String currentOwner = redisLockService.getLockOwner(key);
+
+            if (currentOwner == null) {
+                throw new IllegalStateException("Seat " + seatCode + " lock has expired. Please select again.");
+            }
+            if (!currentOwner.equals(ownerId)) {
+                throw new IllegalStateException("Seat " + seatCode + " has been taken by another user.");
+            }
+        }
+    }
+
+    private void refreshLocks(UUID tripId, List<String> seatCodes, long timeout) {
+        for (String seatCode : seatCodes) {
+            String key = generateSeatLockKey(tripId, seatCode);
+            redisLockService.refreshLock(key, timeout);
+        }
+    }
+
+    private String generateSeatLockKey(UUID tripId, String seatCode) {
+        return "lock:seat:" + tripId + ":" + seatCode;
+    }
+
+    private String determineOwnerId(String userEmail, String sessionId) {
+        if (userEmail != null && !userEmail.isEmpty()) {
+            return userEmail;
+        }
+        if (sessionId != null && !sessionId.isEmpty()) {
+            return sessionId;
+        }
+        throw new IllegalArgumentException("User Email or Session ID is required");
     }
 
     public TicketDetailResponse getTicketDetail(UUID ticketId, String userEmail) {
@@ -123,7 +289,6 @@ public class TicketService {
 
         releaseSeats(ticket.getTrip().getId(), ticket.getSeats());
 
-        // Hoàn lại số lượng ghế trống cho Trip
         Trip trip = ticket.getTrip();
         trip.setAvailableSeats(trip.getAvailableSeats() + ticket.getSeats().size());
         tripRepository.save(trip);
@@ -172,37 +337,6 @@ public class TicketService {
         };
 
         return ticketRepository.findAll(spec, pageable).map(this::mapToHistoryResponse);
-    }
-
-    // --- Helpers ---
-    private void holdSeatsInternal(UUID tripId, List<String> seatCodes, String userId) {
-        List<String> lockedKeys = new ArrayList<>();
-        try {
-            for (String seatCode : seatCodes) {
-                String key = "lock:seat:" + tripId + ":" + seatCode;
-                boolean acquired = redisLockService.tryLock(key, userId, LOCK_TIMEOUT_SECONDS);
-                if (!acquired) throw new IllegalStateException("Ghế " + seatCode + " đang được người khác chọn.");
-                lockedKeys.add(key);
-            }
-
-            List<TripSeat> allStatuses = seatStatusRepository.findByTripId(tripId);
-            List<TripSeat> targetStatuses = allStatuses.stream()
-                    .filter(s -> seatCodes.contains(s.getSeat().getSeatCode()))
-                    .collect(Collectors.toList());
-
-            if (targetStatuses.size() != seatCodes.size()) throw new ResourceNotFoundException("Ghế không hợp lệ");
-
-            for (TripSeat status : targetStatuses) {
-                if (status.getStatus() == TripSeat.Status.BOOKED) {
-                    throw new IllegalStateException("Ghế " + status.getSeat().getSeatCode() + " đã được bán.");
-                }
-                status.setStatus(TripSeat.Status.LOCKED);
-            }
-            seatStatusRepository.saveAll(targetStatuses);
-        } catch (Exception e) {
-            for (String key : lockedKeys) redisLockService.unlock(key);
-            throw e;
-        }
     }
 
     private void releaseSeats(UUID tripId, List<String> seatCodes) {
