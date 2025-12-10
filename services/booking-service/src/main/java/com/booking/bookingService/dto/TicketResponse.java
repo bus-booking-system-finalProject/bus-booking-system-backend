@@ -21,8 +21,6 @@ public class TicketResponse {
 
     @Data @Builder
     public static class PricingDto {
-        private BigDecimal subtotal;
-        private BigDecimal serviceFee;
         private BigDecimal total;
         private String currency;
     }

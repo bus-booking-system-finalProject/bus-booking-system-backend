@@ -124,9 +124,7 @@ public class TicketService {
 
         // 2. Tính toán tiền
         BigDecimal pricePerTicket = trip.getPrice();
-        BigDecimal subtotal = pricePerTicket.multiply(BigDecimal.valueOf(request.getSeats().size()));
-        BigDecimal serviceFee = BigDecimal.valueOf(20000);
-        BigDecimal total = subtotal.add(serviceFee);
+        BigDecimal total = pricePerTicket.multiply(BigDecimal.valueOf(request.getSeats().size()));
 
         // 3. Tạo Ticket
         Ticket ticket = Ticket.builder()
@@ -157,8 +155,6 @@ public class TicketService {
                 .seats(ticket.getSeats())
                 .passengers(ticket.getSeats().size())
                 .pricing(TicketResponse.PricingDto.builder()
-                        .subtotal(subtotal)
-                        .serviceFee(serviceFee)
                         .total(total)
                         .currency("VND")
                         .build())
@@ -341,37 +337,6 @@ public class TicketService {
         };
 
         return ticketRepository.findAll(spec, pageable).map(this::mapToHistoryResponse);
-    }
-
-    // --- Helpers ---
-    private void holdSeatsInternal(UUID tripId, List<String> seatCodes, String userId) {
-        List<String> lockedKeys = new ArrayList<>();
-        try {
-            for (String seatCode : seatCodes) {
-                String key = "lock:seat:" + tripId + ":" + seatCode;
-                boolean acquired = redisLockService.tryLock(key, userId, LOCK_TIMEOUT_SECONDS);
-                if (!acquired) throw new IllegalStateException("Seat " + seatCode + " is being selected by another user.");
-                lockedKeys.add(key);
-            }
-
-            List<TripSeat> allStatuses = seatStatusRepository.findByTripId(tripId);
-            List<TripSeat> targetStatuses = allStatuses.stream()
-                    .filter(s -> seatCodes.contains(s.getSeat().getSeatCode()))
-                    .collect(Collectors.toList());
-
-            if (targetStatuses.size() != seatCodes.size()) throw new ResourceNotFoundException("Invalid seat");
-
-            for (TripSeat status : targetStatuses) {
-                if (status.getStatus() == TripSeat.Status.BOOKED) {
-                    throw new IllegalStateException("Seat " + status.getSeat().getSeatCode() + " has already been sold.");
-                }
-                status.setStatus(TripSeat.Status.LOCKED);
-            }
-            seatStatusRepository.saveAll(targetStatuses);
-        } catch (Exception e) {
-            for (String key : lockedKeys) redisLockService.unlock(key);
-            throw e;
-        }
     }
 
     private void releaseSeats(UUID tripId, List<String> seatCodes) {
