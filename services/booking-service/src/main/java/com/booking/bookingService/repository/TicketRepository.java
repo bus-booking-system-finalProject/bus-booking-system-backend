@@ -24,4 +24,6 @@ public interface TicketRepository extends JpaRepository<Ticket, UUID>, JpaSpecif
     @Override
     @EntityGraph(attributePaths = {"trip", "trip.route", "trip.operator"})
     Page<Ticket> findAll(@Nullable Specification<Ticket> spec, Pageable pageable);
+    // --- Finder Method for Guest Lookup ---
+    Optional<Ticket> findFirstByTicketCode(String ticketCode);
 }
