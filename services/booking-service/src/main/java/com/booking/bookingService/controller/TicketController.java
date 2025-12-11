@@ -1,8 +1,10 @@
 package com.booking.bookingService.controller;
 
 import com.booking.bookingService.dto.SeatLockRequest; // Import DTO mới
+import com.booking.bookingService.dto.TicketLookupResponse;
 import com.booking.bookingService.dto.TicketRequest;
 import com.booking.bookingService.dto.CancelTicketRequest;
+import com.booking.bookingService.dto.GuestLookupRequest;
 import com.booking.bookingService.service.TicketService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -127,4 +129,25 @@ public class TicketController {
         
         return ResponseEntity.ok(response);
     }
+
+    // --- GUEST LOOKUP ---
+    /**
+     * Endpoint for guest users to lookup a ticket using the booking reference and a verification value (phone or email).
+     * This endpoint does NOT require authentication.
+     * @param request DTO containing bookingCode and verificationValue.
+     * @return The aggregated ticket details.
+     */
+    @PostMapping("/lookup")
+    public ResponseEntity<?> lookupGuestBooking(
+            @RequestBody GuestLookupRequest request) {
+        
+        TicketLookupResponse data = ticketService.lookupGuestTicket(request);
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("data", data);
+
+        return ResponseEntity.ok(response);
+    }
+    
 }

@@ -35,7 +35,7 @@ public class SecurityConfig {
                 // 2. LOGIC VÉ (TICKET) - QUAN TRỌNG:
                 // a. Guest Lock & Unlock ghế (Mới thêm) -> Phải khai báo rõ ràng
                 .requestMatchers(HttpMethod.POST, "/tickets/lock", "/tickets/unlock").permitAll()
-
+                .requestMatchers(HttpMethod.POST, "/tickets/lookup").permitAll()
                 // b. Guest tạo vé (Submit form) -> POST /tickets
                 .requestMatchers(HttpMethod.POST, "/tickets").permitAll()
 
