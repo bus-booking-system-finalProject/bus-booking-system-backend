@@ -76,6 +76,7 @@ public class TicketController {
             userEmail = currentUser.getUsername();
         } 
         
+        System.out.println("Creating ticket for user: " + userEmail);
         // Service sẽ dùng userEmail (nếu có) HOẶC sessionId trong request để đối chiếu lock
         return new ResponseEntity<>(ticketService.createTicket(request, userEmail), HttpStatus.CREATED);
     }

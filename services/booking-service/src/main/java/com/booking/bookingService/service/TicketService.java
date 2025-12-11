@@ -4,12 +4,13 @@ import com.booking.bookingService.dto.*;
 import com.booking.bookingService.exception.ResourceNotFoundException;
 import com.booking.bookingService.model.*;
 import com.booking.bookingService.repository.*;
-import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import jakarta.persistence.criteria.Predicate;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -104,7 +105,7 @@ public class TicketService {
     // =================================================================
     // PHASE 2: CREATE TICKET (Finalize Booking)
     // =================================================================
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public TicketResponse createTicket(TicketRequest request, String userEmail) {
         String lockOwnerId = determineOwnerId(request.getSessionId());
 
@@ -114,13 +115,14 @@ public class TicketService {
         // 1. SECURITY CHECK: User có thực sự đang giữ ghế không?
         validateLockOwnership(trip.getId(), request.getSeats(), lockOwnerId);
 
-        if (trip.getAvailableSeats() < request.getSeats().size()) {
-            throw new IllegalStateException("Not enough seats available");
+        int updatedRows = tripRepository.decrementAvailableSeats(trip.getId(), request.getSeats().size());
+        
+        if (updatedRows == 0) {
+            throw new IllegalStateException("Not enough seats available (Concurrency check failed)");
         }
-
-        // Cập nhật số lượng ghế trống của Trip
+        
+        // Cập nhật lại object trip trong memory để hiển thị đúng (dù DB đã trừ rồi)
         trip.setAvailableSeats(trip.getAvailableSeats() - request.getSeats().size());
-        tripRepository.save(trip); // Lưu Trip đã update
 
         // 2. Tính toán tiền
         BigDecimal pricePerTicket = trip.getPrice();
@@ -169,6 +171,7 @@ public class TicketService {
     
     // API này dùng để lấy danh sách ghế hiển thị lên UI
     // Nó bao gồm logic "Lazy Sync": Nếu Redis hết hạn mà DB vẫn Locked -> Reset về Available
+    @Transactional
     public List<TripSeat> getTripSeatsAndSync(UUID tripId) {
         List<TripSeat> seats = seatStatusRepository.findByTripId(tripId);
         List<TripSeat> seatsToUpdate = new ArrayList<>();
@@ -274,42 +277,71 @@ public class TicketService {
 
     @Transactional
     public TicketCancelResponse cancelTicket(UUID ticketId, CancelTicketRequest request, String userEmail) {
+        // 1. Lấy thông tin vé
         Ticket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new ResourceNotFoundException("Ticket not found"));
 
+        // 2. [SECURITY] Kiểm tra quyền sở hữu vé
+        // Giả sử Ticket entity có lưu userEmail hoặc userId
+        if (!ticket.getUserEmail().equals(userEmail)) {
+            throw new AccessDeniedException("You are not authorized to cancel this ticket");
+        }
+
+        // 3. Validate trạng thái
         if (ticket.getStatus() == Ticket.TicketStatus.CANCELLED) {
             throw new IllegalStateException("Ticket is already cancelled");
         }
 
+        // 4. Validate thời gian (Magic number '2' nên đưa vào Config/Constant)
         if (ticket.getTrip().getDepartureTime().minusHours(2).isBefore(LocalDateTime.now())) {
             throw new IllegalStateException("Cannot cancel ticket close to departure time");
         }
 
+        // 5. Xử lý logic vé
+        // Release ghế cụ thể (bảng SeatAllocation hoặc tương tự)
         releaseSeats(ticket.getTrip().getId(), ticket.getSeats());
 
-        Trip trip = ticket.getTrip();
-        trip.setAvailableSeats(trip.getAvailableSeats() + ticket.getSeats().size());
-        tripRepository.save(trip);
+        // [CONCURRENCY FIX] Update số lượng ghế trực tiếp trong DB để tránh Race Condition
+        // Thay vì get/set, hãy viết hàm custom trong Repository
+        tripRepository.incrementAvailableSeats(ticket.getTrip().getId(), ticket.getSeats().size());
 
+        // 6. Logic Hoàn tiền (Quan trọng!)
+        BigDecimal refundAmount = BigDecimal.ZERO;
+        TicketCancelResponse.RefundDto refundDto = null;
+
+        // CHỈ hoàn tiền nếu vé ĐÃ ĐƯỢC CONFIRM (Đã thanh toán)
+        if (ticket.getStatus() == Ticket.TicketStatus.CONFIRMED) {
+            // Có thể check thêm request.isRequestRefund() nếu muốn user xác nhận việc hoàn tiền
+            refundAmount = ticket.getTotalAmount().multiply(BigDecimal.valueOf(0.8));
+            
+            // TODO: Gọi Payment Service/Gateway để thực hiện refund thực tế tại đây
+            // paymentService.refund(ticket.getPaymentId(), refundAmount);
+
+            refundDto = TicketCancelResponse.RefundDto.builder()
+                    .amount(refundAmount)
+                    .percentage(80)
+                    .processingTime("3-5 business days")
+                    .refundMethod("original payment method")
+                    .status("PROCESSING") // Trạng thái refund
+                    .build();
+        } else {
+            // Vé chưa thanh toán (PENDING) -> Hủy bình thường, không hoàn tiền
+            refundDto = TicketCancelResponse.RefundDto.builder()
+                    .amount(BigDecimal.ZERO)
+                    .status("NONE")
+                    .build();
+        }
+
+        // 7. Cập nhật trạng thái vé và lưu
         ticket.setStatus(Ticket.TicketStatus.CANCELLED);
         ticket.setCancelledAt(LocalDateTime.now());
         ticketRepository.save(ticket);
-
-        BigDecimal refundAmount = BigDecimal.ZERO;
-        if (request.isRequestRefund()) {
-            refundAmount = ticket.getTotalAmount().multiply(BigDecimal.valueOf(0.8));
-        }
 
         return TicketCancelResponse.builder()
                 .ticketId(ticket.getId())
                 .status("cancelled")
                 .cancelledAt(ticket.getCancelledAt())
-                .refund(TicketCancelResponse.RefundDto.builder()
-                        .amount(refundAmount)
-                        .percentage(80)
-                        .processingTime("3-5 business days")
-                        .refundMethod("original payment method")
-                        .build())
+                .refund(refundDto)
                 .build();
     }
 
@@ -327,13 +359,27 @@ public class TicketService {
 
         Specification<Ticket> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
+            
+            // Luôn filter theo userEmail
             predicates.add(cb.equal(root.get("userEmail"), userEmail));
-            if (status != null) predicates.add(cb.equal(root.get("status"), status));
-            if (fromDateTime != null) predicates.add(cb.greaterThanOrEqualTo(root.get("createdAt"), fromDateTime));
-            if (toDateTime != null) predicates.add(cb.lessThanOrEqualTo(root.get("createdAt"), toDateTime));
+
+            // Chỉ thêm điều kiện nếu tham số KHÁC NULL
+            // -> Khắc phục hoàn toàn lỗi "could not determine data type" của Postgres
+            if (status != null) {
+                predicates.add(cb.equal(root.get("status"), status));
+            }
+            if (fromDateTime != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("createdAt"), fromDateTime));
+            }
+            if (toDateTime != null) {
+                predicates.add(cb.lessThanOrEqualTo(root.get("createdAt"), toDateTime));
+            }
+            
             return cb.and(predicates.toArray(new Predicate[0]));
         };
 
+        // 4. Gọi Repository
+        // Nhờ @EntityGraph ở Repository, lệnh này sẽ load luôn Trip/Route/Operator trong 1 query
         return ticketRepository.findAll(spec, pageable).map(this::mapToHistoryResponse);
     }
 

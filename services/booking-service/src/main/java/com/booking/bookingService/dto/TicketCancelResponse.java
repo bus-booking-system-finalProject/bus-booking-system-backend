@@ -17,6 +17,7 @@ public class TicketCancelResponse {
     public static class RefundDto {
         private BigDecimal amount;
         private int percentage;
+        private String status;
         private String processingTime;
         private String refundMethod;
     }

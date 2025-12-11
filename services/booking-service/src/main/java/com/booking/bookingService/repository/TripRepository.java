@@ -3,6 +3,7 @@ package com.booking.bookingService.repository;
 import com.booking.bookingService.model.Trip;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -23,4 +24,13 @@ public interface TripRepository extends JpaRepository<Trip, UUID>, JpaSpecificat
             @Param("startTime") LocalDateTime startTime, 
             @Param("endTime") LocalDateTime endTime
     );
+
+    @Modifying
+    @Query("UPDATE Trip t SET t.availableSeats = t.availableSeats - :amount " +
+           "WHERE t.id = :tripId AND t.availableSeats >= :amount")
+    int decrementAvailableSeats(@Param("tripId") UUID tripId, @Param("amount") int amount);
+
+    @Modifying
+    @Query("UPDATE Trip t SET t.availableSeats = t.availableSeats + :amount WHERE t.id = :tripId")
+    void incrementAvailableSeats(@Param("tripId") UUID tripId, @Param("amount") int amount);
 }
