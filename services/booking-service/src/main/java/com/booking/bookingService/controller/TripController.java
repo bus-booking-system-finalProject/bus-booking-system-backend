@@ -5,6 +5,7 @@ import com.booking.bookingService.dto.TripRequest;
 import com.booking.bookingService.dto.TripSearchResponse;
 import com.booking.bookingService.dto.TripSearchRequest;
 import com.booking.bookingService.service.TripService;
+import com.booking.bookingService.service.SearchLogService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +24,7 @@ import java.util.UUID;
 public class TripController {
 
     private final TripService tripService;
+    private final SearchLogService searchLogService;
 
     @PostMapping
     public ResponseEntity<?> createTrip(@Valid @RequestBody TripRequest request) {
@@ -56,6 +58,8 @@ public class TripController {
     public ResponseEntity<Map<String, Object>> searchTrips(
         @ModelAttribute TripSearchRequest request
     ) {
+        searchLogService.logSearchEvent(request);
+        
         Page<TripSearchResponse> result = tripService.searchTrips(request);
 
         Map<String, Object> response = new HashMap<>();

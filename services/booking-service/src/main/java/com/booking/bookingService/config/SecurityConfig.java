@@ -49,6 +49,8 @@ public class SecurityConfig {
                 // 3. MASTER DATA
                 .requestMatchers("/trips/**", "/buses/**", "/routes/**", "/operators/**").permitAll()
 
+                .requestMatchers("/admin/**").hasRole("ADMIN")
+
                 // 4. API CÒN LẠI -> Cần đăng nhập (Bao gồm xem lịch sử GET /tickets)
                 .anyRequest().authenticated()
             );
