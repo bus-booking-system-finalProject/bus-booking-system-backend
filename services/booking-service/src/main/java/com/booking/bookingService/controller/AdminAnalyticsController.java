@@ -8,7 +8,6 @@ import com.booking.bookingService.dto.analytics.AnalyticsSummaryDto;
 import com.booking.bookingService.service.AnalyticsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.security.access.prepost.PreAuthorize;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;

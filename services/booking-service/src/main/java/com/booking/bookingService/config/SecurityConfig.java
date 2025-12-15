@@ -42,6 +42,8 @@ public class SecurityConfig {
                 // c. Guest hủy vé (PUT /tickets/{uuid}/cancel)
                 .requestMatchers(HttpMethod.PUT, "/tickets/**").permitAll()
 
+                .requestMatchers("/payments/**").permitAll()
+
                 // d. Guest xem chi tiết vé (GET /tickets/{uuid})
                 // Chỉ khớp UUID để tránh trùng với trang lịch sử (GET /tickets)
                 .requestMatchers(HttpMethod.GET, "/tickets/{id:[0-9a-fA-F-]{36}}").permitAll()

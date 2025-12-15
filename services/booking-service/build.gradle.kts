@@ -46,6 +46,9 @@ dependencies {
     implementation("com.google.zxing:core:3.5.1")
     implementation("com.google.zxing:javase:3.5.1")
 
+    // Pay os 
+    implementation("vn.payos:payos-java:2.0.1")
+
     // Email Support
     implementation("org.springframework.boot:spring-boot-starter-mail")
 
