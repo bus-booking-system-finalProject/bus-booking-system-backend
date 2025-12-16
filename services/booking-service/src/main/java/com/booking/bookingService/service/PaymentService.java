@@ -68,13 +68,13 @@ public class PaymentService {
         PaymentLinkItem item = PaymentLinkItem.builder()
                 .name("Bus Ticket")
                 .quantity(1)
-                .price(ticket.getTotalAmount().intValue())
+                .price(ticket.getTotalAmount().longValue())
                 .build();
 
         // 5. Create Request
         CreatePaymentLinkRequest paymentRequest = CreatePaymentLinkRequest.builder()
                 .orderCode(orderCode)
-                .amount(ticket.getTotalAmount().intValue())
+                .amount(ticket.getTotalAmount().longValue())
                 .description(description)
                 .cancelUrl(cancelUrl)
                 .returnUrl(returnUrl)
