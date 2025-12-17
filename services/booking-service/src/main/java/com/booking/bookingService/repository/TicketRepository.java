@@ -24,6 +24,9 @@ public interface TicketRepository extends JpaRepository<Ticket, UUID>, JpaSpecif
     // Tìm các vé PENDING đã quá hạn giữ chỗ
     List<Ticket> findByStatusAndLockedUntilBefore(Ticket.TicketStatus status, LocalDateTime now);
 
+    @Query("SELECT t FROM Ticket t WHERE t.status = 'CONFIRMED' AND t.trip.arrivalTime < :now")
+    List<Ticket> findCompletedTickets(@Param("now") LocalDateTime now);
+    
     @Override
     @EntityGraph(attributePaths = {"trip", "trip.route", "trip.operator"})
     Page<Ticket> findAll(@Nullable Specification<Ticket> spec, Pageable pageable);
