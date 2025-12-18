@@ -81,7 +81,7 @@ public class PaymentController {
             // 2. Map sang DTO hoặc Map đơn giản để trả về JSON (Tránh lỗi vòng lặp Jackson nếu trả entity gốc)
             Map<String, Object> responseData = new java.util.HashMap<>();
             responseData.put("paymentId", payment.getId());
-            responseData.put("orderCode", payment.getOrderCode());
+            responseData.put("ticketCode", payment.getTicket().getTicketCode());
             responseData.put("amount", payment.getAmount());
             responseData.put("status", payment.getStatus()); // QUAN TRỌNG: PENDING | PAID | PAID_LATE
             responseData.put("createdAt", payment.getCreatedAt());

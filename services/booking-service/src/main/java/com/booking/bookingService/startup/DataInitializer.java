@@ -23,7 +23,7 @@ import java.util.Map;
 
 /**
  * Bootstraps the application with initial data.
- * UPDATED: Removed cleanup for non-existent 'seat_type' table.
+ * UPDATED: Added cleanup for Payment/TripStop and automatic TripStop generation.
  */
 @Component
 @RequiredArgsConstructor
@@ -36,6 +36,8 @@ public class DataInitializer implements CommandLineRunner {
     private final TripRepository tripRepository;
     private final SeatRepository seatRepository;
     private final TripSeatRepository seatStatusRepository;
+    private final TripStopRepository tripStopRepository; 
+    
     private final ObjectMapper objectMapper;
 
     @PersistenceContext
@@ -47,30 +49,25 @@ public class DataInitializer implements CommandLineRunner {
         // --- 1. CLEAN UP EXISTING DATA ---
         log.info("Cleaning up existing data to ensure a fresh start...");
         
-        // A. Xóa hẳn các bảng không còn dùng nữa (Booking, Passenger cũ)
-        // Dùng DROP TABLE IF EXISTS để không báo lỗi nếu bảng đã bị xóa
-        entityManager.createNativeQuery("DROP TABLE IF EXISTS booking_seats CASCADE").executeUpdate();
-        entityManager.createNativeQuery("DROP TABLE IF EXISTS passenger CASCADE").executeUpdate();
-        entityManager.createNativeQuery("DROP TABLE IF EXISTS booking CASCADE").executeUpdate();
-        // Xóa luôn bảng seat_type nếu còn sót
-        entityManager.createNativeQuery("DROP TABLE IF EXISTS seat_type CASCADE").executeUpdate();
+        // Disable constraints temporarily if needed, but CASCADE usually handles it
+        // A. Clean up Payment (Child of Ticket)
+        entityManager.createNativeQuery("TRUNCATE TABLE payment CASCADE").executeUpdate();
 
-        // B. Làm sạch dữ liệu các bảng đang dùng (Ticket, Trip, Bus...)
-        // Dùng TRUNCATE TABLE IF EXISTS để tránh lỗi nếu bảng chưa được tạo (lần chạy đầu tiên)
+        // B. Clean up Ticket & Seats
         entityManager.createNativeQuery("TRUNCATE TABLE ticket_seats CASCADE").executeUpdate();
         entityManager.createNativeQuery("TRUNCATE TABLE ticket CASCADE").executeUpdate();
         
+        // C. Clean up Trip details (Seats & Stops)
         entityManager.createNativeQuery("TRUNCATE TABLE trip_seat CASCADE").executeUpdate();
+        entityManager.createNativeQuery("TRUNCATE TABLE trip_stop CASCADE").executeUpdate(); // NEW
         
-        // Các bảng cha (Trip, Seat, Route, Bus, Operator)
-        // Dùng CASCADE để nó tự động xóa dữ liệu liên quan ở bảng con
+        // D. Clean up Core Data
         entityManager.createNativeQuery("TRUNCATE TABLE trip CASCADE").executeUpdate();
         entityManager.createNativeQuery("TRUNCATE TABLE seat CASCADE").executeUpdate();
         entityManager.createNativeQuery("TRUNCATE TABLE route CASCADE").executeUpdate();
         entityManager.createNativeQuery("TRUNCATE TABLE bus CASCADE").executeUpdate();
         entityManager.createNativeQuery("TRUNCATE TABLE operator CASCADE").executeUpdate();
 
-        // Flush để đảm bảo lệnh chạy ngay lập tức
         entityManager.flush();
 
         log.info("All existing data cleared. Initializing new data from JSON file...");
@@ -81,7 +78,6 @@ public class DataInitializer implements CommandLineRunner {
         try (InputStream inputStream = new ClassPathResource("data/initial_data.json").getInputStream()) {
             InitialData data = objectMapper.readValue(inputStream, InitialData.class);
 
-            // Caches to resolve relationships without repeated DB lookups
             Map<String, Operator> operatorCache = new HashMap<>();
             Map<String, Bus> busCache = new HashMap<>();
             Map<String, Route> routeCache = new HashMap<>();
@@ -131,7 +127,7 @@ public class DataInitializer implements CommandLineRunner {
                 routeCache.put(routeData.getKey(), route);
             }
 
-            // D. Create Trips & Statuses
+            // D. Create Trips, Statuses & STOPS
             for (TripData tripData : data.getTrips()) {
                 Route route = routeCache.get(tripData.getRouteKey());
                 Bus bus = busCache.get(tripData.getBusKey());
@@ -153,9 +149,13 @@ public class DataInitializer implements CommandLineRunner {
                         .build();
                 tripRepository.save(trip);
 
+                // 1. Generate Seat Statuses
                 int availableSeats = initializeSeatStatusesForTrip(trip, bus);
                 trip.setAvailableSeats(availableSeats);
                 tripRepository.save(trip);
+
+                // 2. Generate Trip Stops (NEW)
+                generateStopsForTrip(trip, route);
             }
 
             log.info("Bootstrap complete. Created {} trips.", data.getTrips().size());
@@ -170,11 +170,7 @@ public class DataInitializer implements CommandLineRunner {
         List<Seat> seats = new ArrayList<>();
         String[] columns = {"A", "B", "C"};
         int seatsPerRow = columns.length;
-        int rows = (bus.getSeatCapacity() + seatsPerRow - 1) / seatsPerRow; // ceil division
-
-        if (bus.getOperator() == null) {
-            throw new IllegalStateException("Bus operator is null for bus " + bus.getId());
-        }
+        int rows = (bus.getSeatCapacity() + seatsPerRow - 1) / seatsPerRow;
 
         for (int row = 1; row <= rows; row++) {
             int colIdx = 1;
@@ -185,8 +181,8 @@ public class DataInitializer implements CommandLineRunner {
                         .bus(bus)
                         .seatCode(col + String.format("%02d", row))
                         .deckNumber(1)
-                        .gridRow(row)       // persist row index
-                        .gridCol(colIdx)    // persist column index
+                        .gridRow(row)
+                        .gridCol(colIdx)
                         .build();
                 seats.add(seat);
                 colIdx++;
@@ -214,6 +210,59 @@ public class DataInitializer implements CommandLineRunner {
         }
         seatStatusRepository.saveAll(statuses);
         return availableCount;
+    }
+
+    /**
+     * Generates default Pickup and Dropoff points based on the Route.
+     */
+    private void generateStopsForTrip(Trip trip, Route route) {
+        List<TripStop> stops = new ArrayList<>();
+
+        // --- PICKUP 1: Office (30 mins before departure) ---
+        stops.add(TripStop.builder()
+                .trip(trip)
+                .type(TripStop.StopType.PICKUP)
+                .placeName("Văn phòng " + route.getOrigin())
+                .address("123 Đường Trung Tâm") // Maps to 'street'
+                .ward("Phường 1")
+                .city(route.getOrigin())
+                .time(trip.getDepartureTime().minusMinutes(30))
+                .build());
+
+        // --- PICKUP 2: Bus Station (At departure time) ---
+        stops.add(TripStop.builder()
+                .trip(trip)
+                .type(TripStop.StopType.PICKUP)
+                .placeName("Bến xe " + route.getOrigin())
+                .address("Quầy vé số 5, Bến xe trung tâm")
+                .ward("Phường Bến Xe")
+                .city(route.getOrigin())
+                .time(trip.getDepartureTime())
+                .build());
+
+        // --- DROPOFF 1: Destination Bus Station (At arrival time) ---
+        stops.add(TripStop.builder()
+                .trip(trip)
+                .type(TripStop.StopType.DROPOFF)
+                .placeName("Bến xe " + route.getDestination())
+                .address("Cổng trả khách, Bến xe")
+                .ward("Phường Kết Thúc")
+                .city(route.getDestination())
+                .time(trip.getArrivalTime())
+                .build());
+
+        // --- DROPOFF 2: City Center (15 mins after arrival) ---
+        stops.add(TripStop.builder()
+                .trip(trip)
+                .type(TripStop.StopType.DROPOFF)
+                .placeName("Trung chuyển Trung tâm " + route.getDestination())
+                .address("Công viên thành phố")
+                .ward("Phường Trung Tâm")
+                .city(route.getDestination())
+                .time(trip.getArrivalTime().plusMinutes(15))
+                .build());
+
+        tripStopRepository.saveAll(stops);
     }
 
     @Data

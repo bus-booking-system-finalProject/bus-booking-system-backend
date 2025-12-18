@@ -80,7 +80,7 @@ services:
       config-server:
         condition: service_healthy
     environment:
-      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_PROFILES_ACTIVE=${ACTIVE_PROFILE}
     networks:
       - booking-network
 
@@ -107,7 +107,7 @@ services:
       user-service-db:
         condition: service_healthy
     environment:
-      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_PROFILES_ACTIVE=${ACTIVE_PROFILE}
     networks:
       - booking-network
 
@@ -137,7 +137,7 @@ services:
     environment:
       - SPRING_DATA_REDIS_HOST=redis 
       - SPRING_DATA_REDIS_PORT=6379
-      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_PROFILES_ACTIVE=${ACTIVE_PROFILE}
     networks:
       - booking-network
 
@@ -146,7 +146,7 @@ services:
     container_name: booking-redis
     ports:
       - "6379:6379"
-    healthcheck: # <--- NEW: Thêm healthcheck để booking-service biết khi nào Redis sẵn sàng
+    healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
@@ -180,7 +180,7 @@ services:
       - LOGGING_LEVEL_REACTOR_NETTY_HTTP_CLIENT=DEBUG
       # This flag enables the ability to change logging levels at runtime (safe to include)
       - SPRING_APPLICATION_ADMIN_ENABLED=true
-      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_PROFILES_ACTIVE=${ACTIVE_PROFILE}
     networks:
       - booking-network
 

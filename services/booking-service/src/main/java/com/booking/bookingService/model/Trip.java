@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -41,4 +42,7 @@ public class Trip {
     private TripStatus status;
 
     public enum TripStatus { SCHEDULED, CANCELLED, COMPLETED }
+
+    @OneToMany(mappedBy = "trip", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<TripStop> stops;
 }

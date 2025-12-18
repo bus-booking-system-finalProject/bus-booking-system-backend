@@ -2,10 +2,17 @@
   "operators": [
     {
       "key": "op_futa",
-      "name": "Futa Bus Lines",
-      "email": "contact@futa.vn",
+      "name": "Phương Trang",
+      "email": "hotro@phuongtrang.vn",
       "phone": "19006067",
       "rating": 4.5
+    },
+    {
+      "key": "op_tb",
+      "name": "Thành Bưởi",
+      "email": "hotro@thanhbuoi.vn",
+      "phone": "19005060",
+      "rating": 4.9
     }
   ],
   "buses": [
