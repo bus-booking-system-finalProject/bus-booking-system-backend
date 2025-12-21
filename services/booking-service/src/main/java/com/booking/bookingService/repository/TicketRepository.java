@@ -42,13 +42,13 @@ public interface TicketRepository extends JpaRepository<Ticket, UUID>, JpaSpecif
             COALESCE(SUM(total_amount), 0) as revenue, 
             COUNT(id) as count 
         FROM ticket 
-        WHERE status = :status 
+        WHERE status IN (:statuses) 
         AND created_at BETWEEN :startDate AND :endDate 
         GROUP BY CAST(created_at AS DATE) 
         ORDER BY date ASC
     """, nativeQuery = true)
     List<Object[]> findDailyTrends(
-        @Param("status") String status, 
+        @Param("statuses") List<String> statuses, 
         @Param("startDate") LocalDateTime startDate, 
         @Param("endDate") LocalDateTime endDate
     );
@@ -64,14 +64,14 @@ public interface TicketRepository extends JpaRepository<Ticket, UUID>, JpaSpecif
         FROM ticket t
         JOIN trip tr ON t.trip_id = tr.id
         JOIN route r ON tr.route_id = r.id
-        WHERE t.status = :status 
+        WHERE t.status IN (:statuses) 
         AND t.created_at BETWEEN :startDate AND :endDate
         GROUP BY r.id, r.origin, r.destination
         ORDER BY total_bookings DESC
         LIMIT :limit
     """, nativeQuery = true)
     List<Object[]> findPopularRoutes(
-        @Param("status") String status, 
+        @Param("statuses") List<String> statuses, 
         @Param("startDate") LocalDateTime startDate, 
         @Param("endDate") LocalDateTime endDate,
         @Param("limit") int limit
@@ -85,7 +85,8 @@ public interface TicketRepository extends JpaRepository<Ticket, UUID>, JpaSpecif
             SUM(CASE WHEN status = 'CONFIRMED' THEN 1 ELSE 0 END) as confirmed_count,
             SUM(CASE WHEN status = 'PENDING' THEN 1 ELSE 0 END) as pending_count,
             SUM(CASE WHEN status = 'CANCELLED' THEN 1 ELSE 0 END) as cancelled_count,
-            COALESCE(SUM(CASE WHEN status = 'CONFIRMED' THEN total_amount ELSE 0 END), 0) as total_revenue
+            SUM(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END) as completed_count,
+            COALESCE(SUM(CASE WHEN status IN ('CONFIRMED', 'COMPLETED') THEN total_amount ELSE 0 END), 0) as total_revenue
         FROM ticket
         WHERE created_at BETWEEN :startDate AND :endDate
     """, nativeQuery = true)

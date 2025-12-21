@@ -27,6 +27,14 @@ public class AnalyticsService {
     private final TicketRepository ticketRepository;
     private final SearchLogRepository searchLogRepository;
 
+    // Helper to get valid sales statuses (CONFIRMED + COMPLETED)
+    private List<String> getValidSalesStatuses() {
+        return List.of(
+            Ticket.TicketStatus.CONFIRMED.name(), 
+            Ticket.TicketStatus.COMPLETED.name()
+        );
+    }
+
     /**
      * Get booking trends (Revenue & Count) grouped by day.
      * Currently filtering by CANCELLED status for testing.
@@ -40,9 +48,9 @@ public class AnalyticsService {
         LocalDateTime startDateTime = fromDate.atStartOfDay();
         LocalDateTime endDateTime = toDate.atTime(LocalTime.MAX);
 
-        // 2. Call Repository (Using CANCELLED as requested)
+        // Update: Pass List of statuses instead of single string
         List<Object[]> rawResults = ticketRepository.findDailyTrends(
-            Ticket.TicketStatus.CANCELLED.name(), 
+            getValidSalesStatuses(), 
             startDateTime, 
             endDateTime
         );
@@ -76,12 +84,9 @@ public class AnalyticsService {
         LocalDateTime startDateTime = fromDate.atStartOfDay();
         LocalDateTime endDateTime = toDate.atTime(LocalTime.MAX);
 
-        // Using "CANCELLED" status for your testing environment
-        // In production, change this to Ticket.TicketStatus.CONFIRMED.name()
-        String status = Ticket.TicketStatus.CANCELLED.name();
-
+        // Update: Pass List of statuses
         List<Object[]> results = ticketRepository.findPopularRoutes(
-            status, 
+            getValidSalesStatuses(), 
             startDateTime, 
             endDateTime, 
             limit
@@ -111,18 +116,14 @@ public class AnalyticsService {
         LocalDateTime startDateTime = fromDate.atStartOfDay();
         LocalDateTime endDateTime = toDate.atTime(LocalTime.MAX);
 
-        // 1. Get Total Searches
         long totalSearches = searchLogRepository.countSearchesInRange(startDateTime, endDateTime);
 
-        // 2. Get Total Bookings (Using CONFIRMED status ideally, but CANCELLED for your test)
-        // Note: We can reuse findAll with a Spec, or add a simple count method in TicketRepository
-        // Let's add a quick count method in TicketRepository logic or use existing count.
+        // Update: Count bookings where status is CONFIRMED OR COMPLETED
         long totalBookings = ticketRepository.count((root, query, cb) -> cb.and(
-            cb.equal(root.get("status"), Ticket.TicketStatus.CANCELLED), // Change to CONFIRMED for prod
+            root.get("status").in(List.of(Ticket.TicketStatus.CONFIRMED, Ticket.TicketStatus.COMPLETED)),
             cb.between(root.get("createdAt"), startDateTime, endDateTime)
         ));
 
-        // 3. Calculate Rate
         double rate = 0.0;
         if (totalSearches > 0) {
             rate = ((double) totalBookings / totalSearches) * 100;
@@ -131,7 +132,7 @@ public class AnalyticsService {
         return ConversionRateDto.builder()
                 .totalSearches(totalSearches)
                 .totalBookings(totalBookings)
-                .conversionRatePercentage(Math.round(rate * 100.0) / 100.0) // Round to 2 decimals
+                .conversionRatePercentage(Math.round(rate * 100.0) / 100.0)
                 .build();
     }
 
@@ -142,31 +143,29 @@ public class AnalyticsService {
         LocalDateTime startDateTime = fromDate.atStartOfDay();
         LocalDateTime endDateTime = toDate.atTime(LocalTime.MAX);
 
-        // FIX: Handle List<Object[]> return type
         List<Object[]> results = ticketRepository.getSummaryStats(startDateTime, endDateTime);
 
         if (results.isEmpty()) {
-            return AnalyticsSummaryDto.builder()
-                .totalRevenue(BigDecimal.ZERO)
-                .build();
+            return AnalyticsSummaryDto.builder().totalRevenue(BigDecimal.ZERO).build();
         }
 
-        // Extract the first row
+        // Indices match the new Query in TicketRepository
+        // 0:Total, 1:Confirmed, 2:Pending, 3:Cancelled, 4:Completed, 5:Revenue
         Object[] row = results.get(0);
 
-        // Safe Casting
         long total = ((Number) row[0]).longValue();
-        // Handle potential nulls from SUM() if no records exist (though COALESCE usually handles it, CASE might return null)
         long confirmed = row[1] != null ? ((Number) row[1]).longValue() : 0;
         long pending = row[2] != null ? ((Number) row[2]).longValue() : 0;
         long cancelled = row[3] != null ? ((Number) row[3]).longValue() : 0;
-        BigDecimal revenue = (BigDecimal) row[4];
+        long completed = row[4] != null ? ((Number) row[4]).longValue() : 0;
+        BigDecimal revenue = (BigDecimal) row[5];
 
         return AnalyticsSummaryDto.builder()
                 .totalTickets(total)
                 .confirmedTickets(confirmed)
                 .pendingTickets(pending)
                 .cancelledTickets(cancelled)
+                .completedTickets(completed) // New Field
                 .totalRevenue(revenue)
                 .build();
     }

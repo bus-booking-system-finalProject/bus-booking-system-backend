@@ -9,6 +9,7 @@ import java.math.BigDecimal;
 public class AnalyticsSummaryDto {
     private long totalTickets;
     private long confirmedTickets;
+    private long completedTickets; // Past bookings (Finished)
     private long pendingTickets;
     private long cancelledTickets;
     private BigDecimal totalRevenue;
