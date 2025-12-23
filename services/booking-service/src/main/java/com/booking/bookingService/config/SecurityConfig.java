@@ -53,6 +53,10 @@ public class SecurityConfig {
 
                 .requestMatchers("/admin/**").hasRole("ADMIN")
 
+                .requestMatchers(HttpMethod.GET, "/feedback/operators/**").permitAll()
+                
+                .requestMatchers(HttpMethod.POST, "/feedback").authenticated()
+
                 // 4. API CÒN LẠI -> Cần đăng nhập (Bao gồm xem lịch sử GET /tickets)
                 .anyRequest().authenticated()
             );
