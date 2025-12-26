@@ -48,7 +48,9 @@ public class TripService {
         // practice)
         // For now, we assume flexible assignment or strict check:
         // if (!bus.getOperator().getId().equals(route.getOperator().getId())) ...
-        BigDecimal discount = request.getDiscountPrice() != null ? request.getDiscountPrice() : BigDecimal.ZERO;
+
+        // if request.discountPrice is null, then set discountPrice to -1
+        BigDecimal discount = request.getDiscountPrice() != null ? request.getDiscountPrice() : BigDecimal.ONE.negate();
 
         Trip trip = Trip.builder()
                 .bus(bus)
@@ -103,7 +105,7 @@ public class TripService {
         trip.setOperator(bus.getOperator());
         trip.setDepartureTime(request.getDepartureTime());
         trip.setOriginalPrice(request.getOriginalPrice());
-        trip.setDiscountPrice(request.getDiscountPrice() != null ? request.getDiscountPrice() : BigDecimal.ZERO);
+        trip.setDiscountPrice(request.getDiscountPrice() != null ? request.getDiscountPrice() : BigDecimal.ONE.negate());
 
         if (request.getStatus() != null) {
             try {
@@ -184,7 +186,7 @@ public class TripService {
             var operatorJoin = root.join("operator");
 
             Expression<BigDecimal> effectivePrice = criteriaBuilder.selectCase()
-                .when(criteriaBuilder.greaterThan(root.get("discountPrice"), BigDecimal.ZERO), root.get("discountPrice"))
+                .when(criteriaBuilder.greaterThan(root.get("discountPrice"), BigDecimal.ONE.negate()), root.get("discountPrice"))
                 .otherwise(root.get("originalPrice"))
                 .as(BigDecimal.class);
 

@@ -33,7 +33,7 @@ public class Trip {
     private BigDecimal originalPrice;
 
     @Builder.Default
-    private BigDecimal discountPrice = BigDecimal.ZERO;
+    private BigDecimal discountPrice = BigDecimal.ONE.negate();
 
     // Cached count of available seats for performant searching
     // This should be updated transactionally whenever a booking occurs
