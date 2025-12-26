@@ -1,5 +1,6 @@
 package com.booking.bookingService.startup;
 
+import com.booking.bookingService.Enum.StopType;
 import com.booking.bookingService.model.*;
 import com.booking.bookingService.repository.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -15,16 +16,16 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.io.InputStream;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
+import java.util.stream.Collectors;
 
-/**
- * Bootstraps the application with initial data.
- * UPDATED: Removed cleanup for non-existent 'seat_type' table.
- */
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -36,6 +37,10 @@ public class DataInitializer implements CommandLineRunner {
     private final TripRepository tripRepository;
     private final SeatRepository seatRepository;
     private final TripSeatRepository seatStatusRepository;
+    private final StationRepository stationRepository;
+    private final RouteStopRepository routeStopRepository;
+    private final TripStopRepository tripStopRepository;
+    
     private final ObjectMapper objectMapper;
 
     @PersistenceContext
@@ -44,64 +49,66 @@ public class DataInitializer implements CommandLineRunner {
     @Override
     @Transactional
     public void run(String... args) throws Exception {
-        // --- 1. CLEAN UP EXISTING DATA ---
-        log.info("Cleaning up existing data to ensure a fresh start...");
-        
-        // A. Xóa hẳn các bảng không còn dùng nữa (Booking, Passenger cũ)
-        // Dùng DROP TABLE IF EXISTS để không báo lỗi nếu bảng đã bị xóa
-        entityManager.createNativeQuery("DROP TABLE IF EXISTS booking_seats CASCADE").executeUpdate();
-        entityManager.createNativeQuery("DROP TABLE IF EXISTS passenger CASCADE").executeUpdate();
-        entityManager.createNativeQuery("DROP TABLE IF EXISTS booking CASCADE").executeUpdate();
-        // Xóa luôn bảng seat_type nếu còn sót
-        entityManager.createNativeQuery("DROP TABLE IF EXISTS seat_type CASCADE").executeUpdate();
-
-        // B. Làm sạch dữ liệu các bảng đang dùng (Ticket, Trip, Bus...)
-        // Dùng TRUNCATE TABLE IF EXISTS để tránh lỗi nếu bảng chưa được tạo (lần chạy đầu tiên)
+        log.info("Cleaning up existing data...");
+        // Cleanup hierarchy: Child -> Parent
+        entityManager.createNativeQuery("TRUNCATE TABLE payment CASCADE").executeUpdate();
         entityManager.createNativeQuery("TRUNCATE TABLE ticket_seats CASCADE").executeUpdate();
         entityManager.createNativeQuery("TRUNCATE TABLE ticket CASCADE").executeUpdate();
-        
         entityManager.createNativeQuery("TRUNCATE TABLE trip_seat CASCADE").executeUpdate();
+        entityManager.createNativeQuery("TRUNCATE TABLE trip_stop CASCADE").executeUpdate();
+        entityManager.createNativeQuery("TRUNCATE TABLE route_stop CASCADE").executeUpdate();
         
-        // Các bảng cha (Trip, Seat, Route, Bus, Operator)
-        // Dùng CASCADE để nó tự động xóa dữ liệu liên quan ở bảng con
         entityManager.createNativeQuery("TRUNCATE TABLE trip CASCADE").executeUpdate();
         entityManager.createNativeQuery("TRUNCATE TABLE seat CASCADE").executeUpdate();
         entityManager.createNativeQuery("TRUNCATE TABLE route CASCADE").executeUpdate();
         entityManager.createNativeQuery("TRUNCATE TABLE bus CASCADE").executeUpdate();
+        entityManager.createNativeQuery("TRUNCATE TABLE station CASCADE").executeUpdate();
         entityManager.createNativeQuery("TRUNCATE TABLE operator CASCADE").executeUpdate();
-
-        // Flush để đảm bảo lệnh chạy ngay lập tức
         entityManager.flush();
 
-        log.info("All existing data cleared. Initializing new data from JSON file...");
-
-        // --- 2. INITIALIZE NEW DATA ---
-        log.info("Bootstrapping database with fresh seed data...");
+        log.info("Initializing new data...");
 
         try (InputStream inputStream = new ClassPathResource("data/initial_data.json").getInputStream()) {
             InitialData data = objectMapper.readValue(inputStream, InitialData.class);
 
-            // Caches to resolve relationships without repeated DB lookups
             Map<String, Operator> operatorCache = new HashMap<>();
             Map<String, Bus> busCache = new HashMap<>();
             Map<String, Route> routeCache = new HashMap<>();
+            Map<String, Station> stationCache = new HashMap<>();
 
-            // A. Create Operators
+            // 1. Create Operators
             for (OperatorData opData : data.getOperators()) {
                 Operator op = Operator.builder()
                         .name(opData.getName())
                         .contactEmail(opData.getEmail())
                         .contactPhone(opData.getPhone())
+                        .rating(opData.getRating())
                         .build();
                 operatorRepository.save(op);
                 operatorCache.put(opData.getKey(), op);
             }
 
-            // B. Create Buses & Seats
+            // 2. Create Stations (Needed before RouteStops)
+            if (data.getStations() != null) {
+                for (StationData stData : data.getStations()) {
+                    Operator op = operatorCache.get(stData.getOperatorKey());
+                    if (op == null) continue;
+                    Station station = Station.builder()
+                            .operator(op)
+                            .name(stData.getName())
+                            .address(stData.getAddress())
+                            .ward(stData.getWard())
+                            .city(stData.getCity())
+                            .build();
+                    stationRepository.save(station);
+                    stationCache.put(stData.getKey(), station);
+                }
+            }
+
+            // 3. Create Buses
             for (BusData busData : data.getBuses()) {
                 Operator op = operatorCache.get(busData.getOperatorKey());
                 if (op == null) continue;
-
                 Bus bus = Bus.builder()
                         .operator(op)
                         .model(busData.getModel())
@@ -111,15 +118,13 @@ public class DataInitializer implements CommandLineRunner {
                         .build();
                 busRepository.save(bus);
                 busCache.put(busData.getKey(), bus);
-
                 generatePhysicalSeatsForBus(bus);
             }
 
-            // C. Create Routes
+            // 4. Create Routes
             for (RouteData routeData : data.getRoutes()) {
                 Operator op = operatorCache.get(routeData.getOperatorKey());
                 if (op == null) continue;
-
                 Route route = Route.builder()
                         .operator(op)
                         .origin(routeData.getOrigin())
@@ -131,86 +136,150 @@ public class DataInitializer implements CommandLineRunner {
                 routeCache.put(routeData.getKey(), route);
             }
 
-            // D. Create Trips & Statuses
-            for (TripData tripData : data.getTrips()) {
-                Route route = routeCache.get(tripData.getRouteKey());
-                Bus bus = busCache.get(tripData.getBusKey());
-
-                if (route == null || bus == null) continue;
-
-                LocalDateTime departure = LocalDateTime.parse(tripData.getDate());
-                LocalDateTime arrival = departure.plusMinutes(route.getEstimatedMinutes());
-
-                Trip trip = Trip.builder()
-                        .route(route)
-                        .bus(bus)
-                        .operator(bus.getOperator())
-                        .departureTime(departure)
-                        .arrivalTime(arrival)
-                        .price(tripData.getPrice())
-                        .status(Trip.TripStatus.SCHEDULED)
-                        .availableSeats(0)
-                        .build();
-                tripRepository.save(trip);
-
-                int availableSeats = initializeSeatStatusesForTrip(trip, bus);
-                trip.setAvailableSeats(availableSeats);
-                tripRepository.save(trip);
+            // 5. Create Route Stops
+            if (data.getRouteStops() != null) {
+                for (RouteStopData rsData : data.getRouteStops()) {
+                    Route route = routeCache.get(rsData.getRouteKey());
+                    Station station = stationCache.get(rsData.getStationKey());
+                    if (route == null || station == null) continue;
+                    RouteStop rs = RouteStop.builder()
+                            .route(route)
+                            .station(station)
+                            .type(StopType.valueOf(rsData.getType()))
+                            .orderIndex(rsData.getOrderIndex())
+                            .timeOffsetMinutes(rsData.getTimeOffset())
+                            .build();
+                    routeStopRepository.save(rs);
+                }
             }
 
-            log.info("Bootstrap complete. Created {} trips.", data.getTrips().size());
+            // 6. GENERATE MASS TRIPS (75 per day)
+            // Target Route: HCM -> Hanoi
+            generateMassTrips(routeCache, busCache, 
+                LocalDate.of(2025, 12, 26), 
+                LocalDate.of(2026, 1, 16), 
+                75
+            );
+            
+            log.info("Data initialization complete.");
 
         } catch (Exception e) {
-            log.error("Critical failure during data initialization", e);
+            log.error("Data initialization failed", e);
             throw e;
         }
     }
 
+    private void generateMassTrips(
+            Map<String, Route> routeCache, 
+            Map<String, Bus> busCache, 
+            LocalDate startDate, 
+            LocalDate endDate, 
+            int tripsPerDay
+    ) {
+        log.info("Generating {} trips/day from {} to {}...", tripsPerDay, startDate, endDate);
+        
+        // Define which routes to use
+        String[] targetRoutes = {"route_futa_hcm_hn", "route_tb_hcm_hn", "route_kumho_hcm_hn", "route_hl_hcm_hn", "route_lh_hcm_hn"};
+        List<Bus> allBuses = new ArrayList<>(busCache.values());
+        Random random = new Random();
+
+        LocalDate current = startDate;
+        while (!current.isAfter(endDate)) {
+            
+            // Distribute 75 trips across 24 hours (approx every 19-20 mins)
+            int intervalMinutes = (24 * 60) / tripsPerDay; 
+            LocalTime time = LocalTime.of(0, 0);
+
+            for (int i = 0; i < tripsPerDay; i++) {
+                // Pick a random route (simulating multiple operators)
+                String routeKey = targetRoutes[random.nextInt(targetRoutes.length)];
+                Route route = routeCache.get(routeKey);
+                
+                // Pick a bus belonging to that operator
+                // (In a real app, you'd check availability, here we just round-robin or random)
+                Bus bus = findBusForOperator(allBuses, route.getOperator());
+                
+                if (route != null && bus != null) {
+                    LocalDateTime departure = LocalDateTime.of(current, time);
+                    
+                    // Vary price slightly
+                    BigDecimal basePrice = BigDecimal.valueOf(5000 + random.nextInt(15000)); 
+
+                    Trip trip = Trip.builder()
+                            .route(route)
+                            .bus(bus)
+                            .operator(bus.getOperator())
+                            .departureTime(departure)
+                            .originalPrice(basePrice)
+                            .status(Trip.TripStatus.SCHEDULED)
+                            .availableSeats(0)
+                            .build();
+                    tripRepository.save(trip);
+
+                    int availableSeats = initializeSeatStatusesForTrip(trip, bus);
+                    trip.setAvailableSeats(availableSeats);
+                    tripRepository.save(trip);
+
+                    generateTripStopsFromTemplate(trip, route);
+                }
+                
+                // Advance time
+                time = time.plusMinutes(intervalMinutes);
+            }
+            log.info("Generated trips for date: {}", current);
+            current = current.plusDays(1);
+        }
+    }
+
+    private Bus findBusForOperator(List<Bus> allBuses, Operator operator) {
+        return allBuses.stream()
+                .filter(b -> b.getOperator().getId().equals(operator.getId()))
+                .findAny() // In real logic, rotate or check schedule
+                .orElse(null);
+    }
+
+    private void generateTripStopsFromTemplate(Trip trip, Route route) {
+        List<RouteStop> templates = routeStopRepository.findByRouteIdOrderByOrderIndexAsc(route.getId());
+        if (templates.isEmpty()) return;
+        
+        List<TripStop> tripStops = templates.stream().map(rs -> {
+            return TripStop.builder()
+                    .trip(trip)
+                    .station(rs.getStation())
+                    .type(rs.getType())
+                    .orderIndex(rs.getOrderIndex())
+                    .time(trip.getDepartureTime().plusMinutes(rs.getTimeOffsetMinutes()))
+                    .build();
+        }).collect(Collectors.toList());
+        tripStopRepository.saveAll(tripStops);
+    }
+
     private void generatePhysicalSeatsForBus(Bus bus) {
+        // ... (Same as previous) ...
         List<Seat> seats = new ArrayList<>();
         String[] columns = {"A", "B", "C"};
         int seatsPerRow = columns.length;
-        int rows = (bus.getSeatCapacity() + seatsPerRow - 1) / seatsPerRow; // ceil division
-
-        if (bus.getOperator() == null) {
-            throw new IllegalStateException("Bus operator is null for bus " + bus.getId());
-        }
+        int rows = (bus.getSeatCapacity() + seatsPerRow - 1) / seatsPerRow;
 
         for (int row = 1; row <= rows; row++) {
             int colIdx = 1;
             for (String col : columns) {
                 if (seats.size() >= bus.getSeatCapacity()) break;
-
-                Seat seat = Seat.builder()
-                        .bus(bus)
-                        .seatCode(col + String.format("%02d", row))
-                        .deckNumber(1)
-                        .gridRow(row)       // persist row index
-                        .gridCol(colIdx)    // persist column index
-                        .build();
-                seats.add(seat);
-                colIdx++;
+                seats.add(Seat.builder().bus(bus).seatCode(col + String.format("%02d", row)).deckNumber(1).gridRow(row).gridCol(colIdx++).build());
             }
         }
         seatRepository.saveAll(seats);
     }
 
     private int initializeSeatStatusesForTrip(Trip trip, Bus bus) {
+        // ... (Same as previous) ...
         List<Seat> seats = seatRepository.findByBusId(bus.getId());
         List<TripSeat> statuses = new ArrayList<>();
         int availableCount = 0;
-
         for (Seat seat : seats) {
             boolean isBooked = Math.random() < 0.1;
-            TripSeat.Status statusValue = isBooked ? TripSeat.Status.BOOKED : TripSeat.Status.AVAILABLE;
             if (!isBooked) availableCount++;
-
-            TripSeat status = TripSeat.builder()
-                    .trip(trip)
-                    .seat(seat)
-                    .status(statusValue)
-                    .build();
-            statuses.add(status);
+            statuses.add(TripSeat.builder().trip(trip).seat(seat).status(isBooked ? TripSeat.Status.BOOKED : TripSeat.Status.AVAILABLE).build());
         }
         seatStatusRepository.saveAll(statuses);
         return availableCount;
@@ -220,43 +289,15 @@ public class DataInitializer implements CommandLineRunner {
     static class InitialData {
         private List<OperatorData> operators;
         private List<BusData> buses;
+        private List<StationData> stations;
         private List<RouteData> routes;
-        private List<TripData> trips;
+        private List<RouteStopData> routeStops;
+        // removed 'trips' list from here as we generate them dynamically
     }
-
-    @Data
-    static class OperatorData {
-        private String key;
-        private String name;
-        private String email;
-        private String phone;
-    }
-
-    @Data
-    static class BusData {
-        private String key;
-        private String operatorKey;
-        private String model;
-        private String plateNumber;
-        private int capacity;
-        private String type;
-    }
-
-    @Data
-    static class RouteData {
-        private String key;
-        private String operatorKey;
-        private String origin;
-        private String destination;
-        private int distance;
-        private int minutes;
-    }
-
-    @Data
-    static class TripData {
-        private String routeKey;
-        private String busKey;
-        private String date;
-        private BigDecimal price;
-    }
+    // DTO classes same as before
+    @Data static class OperatorData { private String key; private String name; private String email; private String phone; private double rating; }
+    @Data static class BusData { private String key; private String operatorKey; private String model; private String plateNumber; private int capacity; private String type; }
+    @Data static class StationData { private String key; private String operatorKey; private String name; private String address; private String ward; private String city; }
+    @Data static class RouteData { private String key; private String operatorKey; private String origin; private String destination; private int distance; private int minutes; }
+    @Data static class RouteStopData { private String routeKey; private String stationKey; private String type; private int orderIndex; private int timeOffset; }
 }

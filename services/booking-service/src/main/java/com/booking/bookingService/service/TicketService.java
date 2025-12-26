@@ -31,6 +31,7 @@ public class TicketService {
     private final TripSeatRepository seatStatusRepository;
     private final TripRepository tripRepository;
     private final TicketRepository ticketRepository;
+    private final TripStopRepository tripStopRepository;
     // private final SeatRepository seatRepository;
 
     private static final long LOCK_TIMEOUT_SECONDS = 600;
@@ -116,12 +117,21 @@ public class TicketService {
         // 1. SECURITY CHECK: User có thực sự đang giữ ghế không?
         validateLockOwnership(trip.getId(), request.getSeats(), lockOwnerId);
 
-        int updatedRows = tripRepository.decrementAvailableSeats(trip.getId(), request.getSeats().size());
-        
-        if (updatedRows == 0) {
-            throw new IllegalStateException("Not enough seats available (Concurrency check failed)");
+        // Fetch Selected Stops
+        TripStop pickupStop = tripStopRepository.findById(request.getPickupId())
+                .orElseThrow(() -> new ResourceNotFoundException("Invalid Pickup ID"));
+        TripStop dropoffStop = tripStopRepository.findById(request.getDropoffId())
+                .orElseThrow(() -> new ResourceNotFoundException("Invalid Dropoff ID"));
+
+        // Validate stops belong to this trip
+        if (!pickupStop.getTrip().getId().equals(trip.getId()) || !dropoffStop.getTrip().getId().equals(trip.getId())) {
+             throw new IllegalArgumentException("Selected stops do not belong to this trip");
         }
-        
+
+        int updatedRows = tripRepository.decrementAvailableSeats(trip.getId(), request.getSeats().size());
+        if (updatedRows == 0) throw new IllegalStateException("Not enough seats available");
+        trip.setAvailableSeats(trip.getAvailableSeats() - request.getSeats().size());
+
         // Cập nhật lại object trip trong memory để hiển thị đúng (dù DB đã trừ rồi)
         trip.setAvailableSeats(trip.getAvailableSeats() - request.getSeats().size());
 
@@ -143,6 +153,8 @@ public class TicketService {
                 // Gia hạn lock thêm 10 phút để thanh toán
                 .lockedUntil(LocalDateTime.now().plusSeconds(LOCK_TIMEOUT_SECONDS))
                 .seats(request.getSeats())
+                .pickupTripStop(pickupStop)
+                .dropoffTripStop(dropoffStop)
                 .build();
 
         ticketRepository.save(ticket);

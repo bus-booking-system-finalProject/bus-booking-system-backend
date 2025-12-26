@@ -16,5 +16,10 @@ public class Operator {
     private String contactEmail;
     private String contactPhone;
     private Double rating;
-    // ... other fields
+    private String image;
+
+    public int getTotalReviews() {
+        // TODO
+        return 0;
+    }
 }

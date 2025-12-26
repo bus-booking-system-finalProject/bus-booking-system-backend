@@ -18,7 +18,8 @@ public interface TripRepository extends JpaRepository<Trip, UUID>, JpaSpecificat
     @Query("SELECT t FROM Trip t " +
            "WHERE t.bus.id = :busId " +
            "AND t.status != 'CANCELLED' " +
-           "AND ((t.departureTime < :endTime) AND (t.arrivalTime > :startTime))")
+           "AND ((t.departureTime < :endTime) AND " +
+           "(CAST(t.departureTime AS timestamp) + (t.route.estimatedMinutes MINUTE) > :startTime))")
     List<Trip> findConflictingTrips(
             @Param("busId") UUID busId, 
             @Param("startTime") LocalDateTime startTime, 

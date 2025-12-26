@@ -2,14 +2,19 @@ package com.booking.bookingService.service;
 
 import com.booking.bookingService.event.TicketSuccessEvent;
 import com.booking.bookingService.exception.ResourceNotFoundException;
+import com.booking.bookingService.model.PayOSPayment;
 import com.booking.bookingService.model.Payment;
 import com.booking.bookingService.model.Ticket;
-import com.booking.bookingService.model.TripSeat; // Import Model
+import com.booking.bookingService.model.TripSeat;
+import com.booking.bookingService.model.Payment.PaymentStatus;
+import com.booking.bookingService.repository.PayOSPaymentRepository;
 import com.booking.bookingService.repository.PaymentRepository;
 import com.booking.bookingService.repository.TicketRepository;
-import com.booking.bookingService.repository.TripSeatRepository; // Import Repository
+import com.booking.bookingService.repository.TripSeatRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,6 +40,9 @@ public class PaymentService {
     private final TripSeatRepository tripSeatRepository; 
     private final ApplicationEventPublisher eventPublisher;
 
+    @Autowired
+    private PayOSPaymentRepository payOSPaymentRepository;
+
     @Transactional
     public CreatePaymentLinkResponse createPaymentLink(UUID ticketId, String returnUrl, String cancelUrl) throws Exception {
         Ticket ticket = ticketRepository.findById(ticketId)
@@ -55,11 +63,11 @@ public class PaymentService {
         }
 
         // 3. Save Payment
-        Payment payment = Payment.builder()
+        PayOSPayment payment = PayOSPayment.builder()
                 .ticket(ticket)
                 .amount(ticket.getTotalAmount())
                 .orderCode(orderCode)
-                .status("PENDING")
+                .status(PaymentStatus.PENDING)
                 .createdAt(LocalDateTime.now())
                 .build();
         paymentRepository.save(payment);
@@ -87,13 +95,14 @@ public class PaymentService {
     @Transactional
     public void processWebhook(WebhookData webhookData) {
         // Tìm Payment theo OrderCode
-        Payment payment = paymentRepository.findByOrderCode(webhookData.getOrderCode())
-                .orElseThrow(() -> new ResourceNotFoundException("Payment not found for OrderCode: " + webhookData.getOrderCode()));
+        Long orderCode = webhookData.getOrderCode();
+        PayOSPayment payment = payOSPaymentRepository.findByOrderCode(orderCode)
+                .orElseThrow(() -> new ResourceNotFoundException("Payment not found for OrderCode: " + orderCode));
 
-        if ("PAID".equals(payment.getStatus())) return;
+        if (PaymentStatus.PAID.equals(payment.getStatus())) return;
 
         // Cập nhật trạng thái Payment
-        payment.setStatus("PAID");
+        payment.setStatus(PaymentStatus.PAID);
         payment.setPaidAt(LocalDateTime.now());
         paymentRepository.save(payment);
 
@@ -101,7 +110,10 @@ public class PaymentService {
         Ticket ticket = payment.getTicket();
         if (ticket.getStatus() == Ticket.TicketStatus.CANCELLED) {
             log.warn("Ticket {} cancelled but payment received. Need refund processing.", ticket.getTicketCode());
-            payment.setStatus("PAID_LATE");
+            payment.setStatus(Payment.PaymentStatus.REFUNDING);
+
+            // TODO: Need refund logic
+
             paymentRepository.save(payment);
             return;
         }
@@ -123,7 +135,7 @@ public class PaymentService {
         tripSeatRepository.saveAll(seats);
 
         // Gửi email vé
-        eventPublisher.publishEvent(new TicketSuccessEvent(ticket.getId(), ticket.getUserEmail()));
+        eventPublisher.publishEvent(new TicketSuccessEvent(ticket));
         log.info("Payment success processing complete for Ticket: {}", ticket.getTicketCode());
     }
 

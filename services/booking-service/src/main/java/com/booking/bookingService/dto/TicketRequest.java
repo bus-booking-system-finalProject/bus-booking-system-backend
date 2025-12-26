@@ -18,6 +18,12 @@ public class TicketRequest {
     @NotEmpty(message = "Seats must not be empty")
     private List<String> seats;
 
+    @NotNull(message = "Pickup stop is required")
+    private UUID pickupId;
+    
+    @NotNull(message = "Dropoff stop is required")
+    private UUID dropoffId;
+
     @NotBlank(message = "Contact name is required")
     private String contactName;
 

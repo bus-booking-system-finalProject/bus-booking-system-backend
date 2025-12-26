@@ -2,11 +2,11 @@ package com.booking.bookingService.event;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
-import java.util.UUID;
+
+import com.booking.bookingService.model.Ticket;
 
 @Getter
 @AllArgsConstructor
 public class TicketSuccessEvent {
-    private final UUID ticketId;
-    private final String userEmail; // Backup email if not in booking entity
+    private final Ticket ticket;
 }

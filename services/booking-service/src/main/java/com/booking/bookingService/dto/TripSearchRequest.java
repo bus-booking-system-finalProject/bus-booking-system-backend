@@ -4,10 +4,13 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import java.util.List;
+
+import org.springframework.format.annotation.DateTimeFormat;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.UUID;
+import java.time.LocalTime;
 
 @Data
 @NoArgsConstructor
@@ -23,15 +26,20 @@ public class TripSearchRequest {
     @Builder.Default
     private Integer passengers = 1;
     
-    private String busType;       // standard | limousine | sleeper
-    private String departureTime; // morning | afternoon | evening | night
+    private List<String> busTypes;       // standard | limousine | sleeper
+
+    @DateTimeFormat(pattern = "HH:mm")
+    private LocalTime minDepartureTime;
+
+    @DateTimeFormat(pattern = "HH:mm")
+    private LocalTime maxDepartureTime;
     
     private BigDecimal minPrice;
     private BigDecimal maxPrice;
 
     private String sort;
     
-    private UUID operatorId;
+    private List<String> operators; // List of Operator Names
 
     // Pagination
     @Builder.Default

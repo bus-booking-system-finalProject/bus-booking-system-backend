@@ -35,7 +35,7 @@ Navigate to the root directory and build the JAR files, skipping tests for a fas
 Once the build is complete, orchestrate the containers using Docker Compose:
 
 ```bash
-docker-compose up -d
+docker-compose --profile infra up
 ```
 
 ## 🔗 URLs & Services

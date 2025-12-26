@@ -44,5 +44,32 @@ public class Ticket {
     @Column(name = "seat_code")
     private List<String> seats; 
 
+    @ManyToOne
+    @JoinColumn(name = "pickup_trip_stop_id")
+    private TripStop pickupTripStop;
+
+    @ManyToOne
+    @JoinColumn(name = "dropoff_trip_stop_id")
+    private TripStop dropoffTripStop;
+
+    @OneToOne(mappedBy = "ticket", fetch = FetchType.LAZY)
+    private Payment payment;
+
     public enum TicketStatus { PENDING, CONFIRMED, CANCELLED, COMPLETED }
+
+    public String getFullPickupAddress() {
+        return pickupTripStop.getFullAddress();
+    }
+
+    public String getFullDropoffAddress() {
+        return dropoffTripStop.getFullAddress();
+    }
+
+    public LocalDateTime getPickupTime() {
+        return pickupTripStop.getTime();
+    }
+
+    public LocalDateTime getDropoffTime() {
+        return dropoffTripStop.getTime();
+    }
 }

@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -28,10 +29,11 @@ public class Trip {
     private Bus bus;
 
     private LocalDateTime departureTime;
-    private LocalDateTime arrivalTime;
 
-    // Renamed from basePrice to match the search query 'price'
-    private BigDecimal price;
+    private BigDecimal originalPrice;
+
+    @Builder.Default
+    private BigDecimal discountPrice = BigDecimal.ZERO;
 
     // Cached count of available seats for performant searching
     // This should be updated transactionally whenever a booking occurs
@@ -41,4 +43,22 @@ public class Trip {
     private TripStatus status;
 
     public enum TripStatus { SCHEDULED, CANCELLED, COMPLETED }
+
+    @OneToMany(mappedBy = "trip", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<TripStop> stops;
+
+    public LocalDateTime getArrivalTime() {
+        if (departureTime != null && route != null) {
+            return departureTime.plusMinutes(route.getEstimatedMinutes());
+        }
+        return null;
+    }
+
+    public BigDecimal getPrice() {
+        BigDecimal price = originalPrice;
+        if (discountPrice.compareTo(BigDecimal.ZERO) > 0) {
+            price = discountPrice;
+        }
+        return price;
+    }
 }
