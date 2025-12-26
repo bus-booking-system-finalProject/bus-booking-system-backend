@@ -11,7 +11,7 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
-
+import org.springframework.beans.factory.annotation.Value;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.io.InputStream;
@@ -20,6 +20,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -46,9 +47,40 @@ public class DataInitializer implements CommandLineRunner {
     @PersistenceContext
     private EntityManager entityManager;
 
+    @Value("${app.data.init-strategy:IF_EMPTY}")
+    private String initStrategy;
+
     @Override
     @Transactional
     public void run(String... args) throws Exception {
+        // Check for command line override flag
+        boolean forceArg = Arrays.asList(args).contains("--force-init");
+        
+        // Determine action based on Strategy and Args
+        if ("NEVER".equalsIgnoreCase(initStrategy) && !forceArg) {
+            log.info("Data initialization is DISABLED (strategy=NEVER).");
+            return;
+        }
+
+        boolean shouldInitialize = false;
+
+        if (forceArg || "ALWAYS".equalsIgnoreCase(initStrategy)) {
+            log.info("Forcing data initialization (Strategy: ALWAYS or --force-init flag detected).");
+            shouldInitialize = true;
+        } else {
+            // Default: IF_EMPTY
+            long count = operatorRepository.count();
+            if (count == 0) {
+                log.info("Database is empty. Starting initialization (Strategy: IF_EMPTY).");
+                shouldInitialize = true;
+            } else {
+                log.info("Database already contains {} operators. Skipping initialization. (Set app.data.init-strategy=ALWAYS to force reset)", count);
+                shouldInitialize = false;
+            }
+        }
+
+        if (!shouldInitialize) return;
+
         log.info("Cleaning up existing data...");
         // Cleanup hierarchy: Child -> Parent
         entityManager.createNativeQuery("TRUNCATE TABLE payment CASCADE").executeUpdate();
@@ -82,6 +114,7 @@ public class DataInitializer implements CommandLineRunner {
                         .name(opData.getName())
                         .contactEmail(opData.getEmail())
                         .contactPhone(opData.getPhone())
+                        .image("////////////static.vexere.com/c/i/535/xe-tra-lan-vien-VeXeRe-ITSpW3J-1000x600.jpeg")
                         .rating(opData.getRating())
                         .build();
                 operatorRepository.save(op);
@@ -156,8 +189,8 @@ public class DataInitializer implements CommandLineRunner {
             // 6. GENERATE MASS TRIPS (75 per day)
             // Target Route: HCM -> Hanoi
             generateMassTrips(routeCache, busCache, 
-                LocalDate.of(2025, 12, 26), 
-                LocalDate.of(2026, 1, 16), 
+                LocalDate.of(2025, 12, 27), 
+                LocalDate.of(2026, 1, 7), 
                 75
             );
             
@@ -292,10 +325,9 @@ public class DataInitializer implements CommandLineRunner {
         private List<StationData> stations;
         private List<RouteData> routes;
         private List<RouteStopData> routeStops;
-        // removed 'trips' list from here as we generate them dynamically
     }
     // DTO classes same as before
-    @Data static class OperatorData { private String key; private String name; private String email; private String phone; private double rating; }
+    @Data static class OperatorData { private String key; private String name; private String email; private String phone; private double rating; private String image; }
     @Data static class BusData { private String key; private String operatorKey; private String model; private String plateNumber; private int capacity; private String type; }
     @Data static class StationData { private String key; private String operatorKey; private String name; private String address; private String ward; private String city; }
     @Data static class RouteData { private String key; private String operatorKey; private String origin; private String destination; private int distance; private int minutes; }

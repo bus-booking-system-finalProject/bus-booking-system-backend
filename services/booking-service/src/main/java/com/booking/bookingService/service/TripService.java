@@ -18,7 +18,6 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
@@ -151,32 +150,26 @@ public class TripService {
         tripRepository.delete(trip);
     }
 
-    public Page<TripSearchResponse> searchTrips(TripSearchRequest request) {
-        // 1. Setup Sorting & Pagination
-        Sort sort = Sort.by(Sort.Direction.ASC, "departureTime"); // Default: Sớm nhất trước
-
-        if (request.getSort() != null && !request.getSort().isEmpty()) {
-            switch (request.getSort()) {
-                case "earliest":
-                    sort = Sort.by(Sort.Direction.ASC, "departureTime");
-                    break;
-                case "latest":
-                    sort = Sort.by(Sort.Direction.DESC, "departureTime");
-                    break;
-                case "lowest_price":
-                    sort = Sort.by(Sort.Direction.ASC, "price");
-                    break;
-                case "highest_rating":
-                    // Lưu ý: Đảm bảo Entity Operator có trường "rating"
-                    sort = Sort.by(Sort.Direction.DESC, "operator.rating");
-                    break;
-                default:
-                    // Fallback về default nếu gửi sort linh tinh
-                    sort = Sort.by(Sort.Direction.ASC, "departureTime");
+    private Specification<Trip> sortByEffectivePriceAsc() {
+        return (root, query, cb) -> {
+            // We must check query.getResultType() to avoid crashing the "Count" query used for pagination
+            if (query.getResultType() != Long.class && query.getResultType() != long.class) {
+                
+                // Logic: IF discountPrice > -1 THEN discountPrice ELSE originalPrice
+                Expression<BigDecimal> effectivePrice = cb.selectCase()
+                    .when(cb.greaterThan(root.get("discountPrice"), BigDecimal.valueOf(-1)), 
+                        root.get("discountPrice"))
+                    .otherwise(root.get("originalPrice"))
+                    .as(BigDecimal.class);
+                
+                // Apply the Order By directly to the query
+                query.orderBy(cb.asc(effectivePrice));
             }
-        }
-        Pageable pageable = PageRequest.of(request.getPage() - 1, request.getLimit(), sort);
+            return null; // We return null because we are modifying the query, not adding a WHERE clause
+        };
+    }
 
+    public Page<TripSearchResponse> searchTrips(TripSearchRequest request) {
         Specification<Trip> spec = (root, query, criteriaBuilder) -> {
             List<Predicate> predicates = new ArrayList<>();
 
@@ -209,7 +202,7 @@ public class TripService {
             // 3. Date (Specific Day)
             if (request.getDate() != null) {
                 LocalDateTime startOfDay = request.getDate().atStartOfDay();
-                LocalDateTime endOfDay = request.getDate().atTime(LocalTime.MAX);
+                LocalDateTime endOfDay = request.getDate().plusDays(1).atStartOfDay().minusMinutes(1);
                 predicates.add(criteriaBuilder.between(root.get("departureTime"), startOfDay, endOfDay));
             }
 
@@ -270,6 +263,30 @@ public class TripService {
 
             return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
         };
+
+        // Setup Sorting & Pagination
+        Sort sort = Sort.unsorted();
+
+        if (request.getSort() != null && !request.getSort().isEmpty()) {
+            switch (request.getSort()) {
+                case "earliest":
+                    sort = Sort.by(Sort.Direction.ASC, "departureTime");
+                    break;
+                case "latest":
+                    sort = Sort.by(Sort.Direction.DESC, "departureTime");
+                    break;
+                case "lowest_price":
+                    spec = spec.and(sortByEffectivePriceAsc());
+                    sort = Sort.unsorted();
+                    break;
+                case "highest_rating":
+                    sort = Sort.by(Sort.Direction.DESC, "operator.rating");
+                    break;
+                default:
+                    sort = Sort.by(Sort.Direction.ASC, "departureTime");
+            }
+        }
+        Pageable pageable = PageRequest.of(request.getPage() - 1, request.getLimit(), sort);
 
         return tripRepository.findAll(spec, pageable).map(this::mapToTripResponse);
     }
@@ -401,9 +418,7 @@ public class TripService {
                 .status(trip.getStatus().name())
                 .operator(TripSearchResponse.OperatorDto.builder()
                         .name(trip.getOperator().getName())
-                        // TODO:
-                        // .image(trip.getOperator().getImage())
-                        .image("////////////static.vexere.com/c/i/535/xe-tra-lan-vien-VeXeRe-ITSpW3J-1000x600.jpeg")
+                        .image(trip.getOperator().getImage())
                         .ratings(TripSearchResponse.OperatorRating.builder()
                                 .overall(trip.getOperator().getRating())
                                 .reviews(trip.getOperator().getTotalReviews())
