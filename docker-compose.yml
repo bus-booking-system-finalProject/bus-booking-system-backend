@@ -6,6 +6,8 @@ services:
   user-service-db:
     image: postgres:17-alpine
     container_name: user-service_db
+    # Added profile: This service won't start unless you use --profile infra
+    profiles: ["infra"]
     ports:
       - "5431:5432"
     healthcheck:
@@ -21,9 +23,12 @@ services:
       - user-service-db:/var/lib/postgresql/data
     networks:
       - booking-network
+
   booking-service-db:
     image: postgres:17-alpine
     container_name: booking-service_db
+    # Added profile
+    profiles: ["infra"]
     ports:
       - "5433:5432"
     healthcheck:
@@ -39,6 +44,7 @@ services:
       - booking-service-db:/var/lib/postgresql/data
     networks:
       - booking-network
+
   # --- 1. Configuration Server ---
   config-server:
     hostname: config-server
@@ -104,8 +110,7 @@ services:
         condition: service_healthy
       service-registry:
         condition: service_healthy
-      user-service-db:
-        condition: service_healthy
+      # REMOVED: user-service-db dependency so it doesn't force start the DB
     environment:
       - SPRING_PROFILES_ACTIVE=${ACTIVE_PROFILE}
     networks:
@@ -126,14 +131,11 @@ services:
       timeout: 5s
       retries: 10
     depends_on:
-      redis:
-        condition: service_healthy
       config-server:
         condition: service_healthy
       service-registry:
         condition: service_healthy
-      booking-service-db:
-        condition: service_healthy
+      # REMOVED: redis and booking-service-db dependencies
     environment:
       - SPRING_DATA_REDIS_HOST=redis 
       - SPRING_DATA_REDIS_PORT=6379
@@ -144,6 +146,8 @@ services:
   redis:
     image: redis:alpine
     container_name: booking-redis
+    # Added profile
+    profiles: ["infra"]
     ports:
       - "6379:6379"
     healthcheck:
@@ -175,10 +179,8 @@ services:
       service-registry:
         condition: service_healthy
     environment:
-      # This is the fast way to set debug logging.
       - LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_CLOUD_GATEWAY=DEBUG
       - LOGGING_LEVEL_REACTOR_NETTY_HTTP_CLIENT=DEBUG
-      # This flag enables the ability to change logging levels at runtime (safe to include)
       - SPRING_APPLICATION_ADMIN_ENABLED=true
       - SPRING_PROFILES_ACTIVE=${ACTIVE_PROFILE}
     networks:

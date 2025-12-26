@@ -44,33 +44,32 @@ public class Ticket {
     @Column(name = "seat_code")
     private List<String> seats; 
 
-    // --- SNAPSHOT of Selected Pickup ---
-    private String pickupLocation; // Name of the stop
-    @Column(name = "pickup_street")
-    private String pickupAddress;
-    private String pickupWard;
-    private String pickupCity;
-    private LocalDateTime pickupTime;
+    @ManyToOne
+    @JoinColumn(name = "pickup_trip_stop_id")
+    private TripStop pickupTripStop;
 
-    // --- SNAPSHOT of Selected Dropoff ---
-    private String dropoffLocation;
-    @Column(name = "dropoff_street")
-    private String dropoffAddress;
-    private String dropoffWard;
-    private String dropoffCity;
-    private LocalDateTime dropoffTime;
+    @ManyToOne
+    @JoinColumn(name = "dropoff_trip_stop_id")
+    private TripStop dropoffTripStop;
 
     @OneToOne(mappedBy = "ticket", fetch = FetchType.LAZY)
     private Payment payment;
 
     public enum TicketStatus { PENDING, CONFIRMED, CANCELLED, COMPLETED }
 
-    // Helpers for Email Service
     public String getFullPickupAddress() {
-        return String.format("%s, %s, %s", pickupAddress, pickupWard, pickupCity);
+        return pickupTripStop.getFullAddress();
     }
 
     public String getFullDropoffAddress() {
-        return String.format("%s, %s, %s", dropoffAddress, dropoffWard, dropoffCity);
+        return dropoffTripStop.getFullAddress();
+    }
+
+    public LocalDateTime getPickupTime() {
+        return pickupTripStop.getTime();
+    }
+
+    public LocalDateTime getDropoffTime() {
+        return dropoffTripStop.getTime();
     }
 }

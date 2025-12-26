@@ -1,141 +1,67 @@
 {
   "operators": [
-    {
-      "key": "op_futa",
-      "name": "Phương Trang",
-      "email": "hotro@phuongtrang.vn",
-      "phone": "19006067",
-      "rating": 4.5
-    },
-    {
-      "key": "op_tb",
-      "name": "Thành Bưởi",
-      "email": "hotro@thanhbuoi.vn",
-      "phone": "19005060",
-      "rating": 4.9
-    }
+    { "key": "op_futa", "name": "Phương Trang", "email": "hotro@futa.vn", "phone": "19006067", "rating": 4.8 },
+    { "key": "op_tb", "name": "Thành Bưởi", "email": "hotro@thanhbuoi.vn", "phone": "19006079", "rating": 4.5 },
+    { "key": "op_kumho", "name": "Kumho Samco", "email": "lienhe@kumhosamco.com.vn", "phone": "19006065", "rating": 4.7 },
+    { "key": "op_hl", "name": "Hoàng Long", "email": "info@hoanglong.vn", "phone": "02253920920", "rating": 4.4 },
+    { "key": "op_lh", "name": "Liên Hưng", "email": "lh@lienhungbus.vn", "phone": "19002679", "rating": 4.6 }
   ],
   "buses": [
-    {
-      "key": "bus_01",
-      "operatorKey": "op_futa",
-      "model": "Hyundai Universe",
-      "plateNumber": "51B-12345",
-      "capacity": 36,
-      "type": "Sleeper"
-    },
-    {
-      "key": "bus_02",
-      "operatorKey": "op_futa",
-      "model": "Thaco Mobihome",
-      "plateNumber": "29B-99999",
-      "capacity": 34,
-      "type": "Limousine"
-    },
-    {
-      "key": "bus_03",
-      "operatorKey": "op_futa",
-      "model": "Ford Transit",
-      "plateNumber": "30F-88888",
-      "capacity": 16,
-      "type": "Standard"
-    },
-    {
-      "key": "bus_04",
-      "operatorKey": "op_futa",
-      "model": "Mercedes Sprinter",
-      "plateNumber": "60C-77777",
-      "capacity": 24,
-      "type": "Standard"
-    },
-    {
-      "key": "bus_05",
-      "operatorKey": "op_futa",
-      "model": "Toyota Hiace",
-      "plateNumber": "79D-66666",
-      "capacity": 29,
-      "type": "Standard"
-    }
+    { "key": "bus_futa_01", "operatorKey": "op_futa", "model": "Hyundai Universe", "plateNumber": "51B-10001", "capacity": 34, "type": "Sleeper" },
+    { "key": "bus_futa_02", "operatorKey": "op_futa", "model": "Thaco Mobihome", "plateNumber": "51B-10002", "capacity": 34, "type": "Sleeper" },
+    { "key": "bus_futa_03", "operatorKey": "op_futa", "model": "Hyundai Universe", "plateNumber": "51B-10003", "capacity": 34, "type": "Sleeper" },
+    { "key": "bus_futa_04", "operatorKey": "op_futa", "model": "Thaco Mobihome", "plateNumber": "51B-10004", "capacity": 22, "type": "Limousine" },
+    
+    { "key": "bus_tb_01", "operatorKey": "op_tb", "model": "Thaco Mobihome", "plateNumber": "50F-20001", "capacity": 34, "type": "Sleeper" },
+    { "key": "bus_tb_02", "operatorKey": "op_tb", "model": "Thaco Mobihome", "plateNumber": "50F-20002", "capacity": 34, "type": "Sleeper" },
+    { "key": "bus_tb_03", "operatorKey": "op_tb", "model": "Hyundai Universe", "plateNumber": "50F-20003", "capacity": 22, "type": "Limousine" },
+
+    { "key": "bus_kumho_01", "operatorKey": "op_kumho", "model": "Samco Primas", "plateNumber": "53S-30001", "capacity": 34, "type": "Sleeper" },
+    { "key": "bus_kumho_02", "operatorKey": "op_kumho", "model": "Samco Primas", "plateNumber": "53S-30002", "capacity": 34, "type": "Sleeper" },
+
+    { "key": "bus_hl_01", "operatorKey": "op_hl", "model": "Daewoo", "plateNumber": "15B-40001", "capacity": 40, "type": "Standard" },
+    { "key": "bus_hl_02", "operatorKey": "op_hl", "model": "Daewoo", "plateNumber": "15B-40002", "capacity": 38, "type": "Sleeper" },
+
+    { "key": "bus_lh_01", "operatorKey": "op_lh", "model": "Kia Granbird", "plateNumber": "79B-50001", "capacity": 34, "type": "Sleeper" },
+    { "key": "bus_lh_02", "operatorKey": "op_lh", "model": "Kia Granbird", "plateNumber": "79B-50002", "capacity": 34, "type": "Sleeper" }
+  ],
+  "stations": [
+    { "key": "st_futa_bxmt", "operatorKey": "op_futa", "name": "Bến Xe Miền Tây", "address": "395 Kinh Dương Vương", "ward": "An Lạc", "city": "Ho Chi Minh City" },
+    { "key": "st_futa_bxn", "operatorKey": "op_futa", "name": "Bến Xe Nước Ngầm", "address": "Km8 Đường Giải Phóng", "ward": "Hoàng Liệt", "city": "Hanoi" },
+    
+    { "key": "st_tb_bxmd", "operatorKey": "op_tb", "name": "Bến Xe Miền Đông", "address": "292 Đinh Bộ Lĩnh", "ward": "Phường 26", "city": "Ho Chi Minh City" },
+    { "key": "st_tb_bxg", "operatorKey": "op_tb", "name": "Bến Xe Giáp Bát", "address": "Km6 Đường Giải Phóng", "ward": "Giáp Bát", "city": "Hanoi" },
+
+    { "key": "st_kumho_bxmd", "operatorKey": "op_kumho", "name": "BX Miền Đông (Quầy 32)", "address": "292 Đinh Bộ Lĩnh", "ward": "Phường 26", "city": "Ho Chi Minh City" },
+    { "key": "st_kumho_bxmd_hn", "operatorKey": "op_kumho", "name": "Bến Xe Mỹ Đình", "address": "20 Phạm Hùng", "ward": "Mỹ Đình", "city": "Hanoi" },
+
+    { "key": "st_hl_bxmd", "operatorKey": "op_hl", "name": "Văn Phòng Hoàng Long", "address": "44 QL13", "ward": "Hiệp Bình Chánh", "city": "Ho Chi Minh City" },
+    { "key": "st_hl_bxn", "operatorKey": "op_hl", "name": "Bến Xe Nước Ngầm", "address": "Số 1 Ngọc Hồi", "ward": "Hoàng Liệt", "city": "Hanoi" },
+
+    { "key": "st_lh_bxmd", "operatorKey": "op_lh", "name": "BX Miền Đông (Quầy 50)", "address": "292 Đinh Bộ Lĩnh", "ward": "Phường 26", "city": "Ho Chi Minh City" },
+    { "key": "st_lh_bxn", "operatorKey": "op_lh", "name": "Bến Xe Nước Ngầm", "address": "Km8 Đường Giải Phóng", "ward": "Hoàng Liệt", "city": "Hanoi" }
   ],
   "routes": [
-    {
-      "key": "route_hcm_hn",
-      "operatorKey": "op_futa",
-      "origin": "Ho Chi Minh City",
-      "destination": "Hanoi",
-      "distance": 1720,
-      "minutes": 1800
-    },
-    {
-      "key": "route_hn_hcm",
-      "operatorKey": "op_futa",
-      "origin": "Hanoi",
-      "destination": "Ho Chi Minh City",
-      "distance": 1720,
-      "minutes": 1800
-    }
+    { "key": "route_futa_hcm_hn", "operatorKey": "op_futa", "origin": "Ho Chi Minh City", "destination": "Hanoi", "distance": 1720, "minutes": 1800 },
+    { "key": "route_tb_hcm_hn", "operatorKey": "op_tb", "origin": "Ho Chi Minh City", "destination": "Hanoi", "distance": 1720, "minutes": 1750 },
+    { "key": "route_kumho_hcm_hn", "operatorKey": "op_kumho", "origin": "Ho Chi Minh City", "destination": "Hanoi", "distance": 1720, "minutes": 1850 },
+    { "key": "route_hl_hcm_hn", "operatorKey": "op_hl", "origin": "Ho Chi Minh City", "destination": "Hanoi", "distance": 1720, "minutes": 1900 },
+    { "key": "route_lh_hcm_hn", "operatorKey": "op_lh", "origin": "Ho Chi Minh City", "destination": "Hanoi", "distance": 1720, "minutes": 1820 }
   ],
-  "trips": [
-    { "routeKey": "route_hcm_hn", "busKey": "bus_01", "date": "2026-01-15T08:00:00", "price": 10000 },
-    { "routeKey": "route_hcm_hn", "busKey": "bus_02", "date": "2026-01-15T09:00:00", "price": 20000 },
-    { "routeKey": "route_hcm_hn", "busKey": "bus_03", "date": "2026-01-15T10:00:00", "price": 30000 },
-    { "routeKey": "route_hcm_hn", "busKey": "bus_04", "date": "2026-01-15T11:00:00", "price": 400004 },
-    { "routeKey": "route_hcm_hn", "busKey": "bus_05", "date": "2026-01-15T12:00:00", "price": 400005 },
-    { "routeKey": "route_hn_hcm", "busKey": "bus_01", "date": "2026-01-15T13:00:00", "price": 400006 },
-    { "routeKey": "route_hn_hcm", "busKey": "bus_02", "date": "2026-01-15T14:00:00", "price": 400007 },
-    { "routeKey": "route_hn_hcm", "busKey": "bus_03", "date": "2026-01-15T15:00:00", "price": 400008 },
-    { "routeKey": "route_hn_hcm", "busKey": "bus_04", "date": "2026-01-15T16:00:00", "price": 400009 },
-    { "routeKey": "route_hn_hcm", "busKey": "bus_05", "date": "2026-01-15T17:00:00", "price": 400010 },
-    { "routeKey": "route_hcm_hn", "busKey": "bus_01", "date": "2026-01-15T18:00:00", "price": 400011 },
-    { "routeKey": "route_hcm_hn", "busKey": "bus_02", "date": "2026-01-15T19:00:00", "price": 400012 },
-    { "routeKey": "route_hcm_hn", "busKey": "bus_03", "date": "2026-01-15T20:00:00", "price": 400013 },
-    { "routeKey": "route_hcm_hn", "busKey": "bus_04", "date": "2026-01-15T21:00:00", "price": 400014 },
-    { "routeKey": "route_hcm_hn", "busKey": "bus_05", "date": "2026-01-15T22:00:00", "price": 400015 },
-    { "routeKey": "route_hn_hcm", "busKey": "bus_01", "date": "2026-01-15T23:00:00", "price": 400016 },
-    { "routeKey": "route_hn_hcm", "busKey": "bus_02", "date": "2026-01-15T06:00:00", "price": 400017 },
-    { "routeKey": "route_hn_hcm", "busKey": "bus_03", "date": "2026-01-15T07:00:00", "price": 400018 },
-    { "routeKey": "route_hn_hcm", "busKey": "bus_04", "date": "2026-01-15T08:00:00", "price": 400019 },
-    { "routeKey": "route_hn_hcm", "busKey": "bus_05", "date": "2026-01-15T09:00:00", "price": 400020 },
-    { "routeKey": "route_hcm_hn", "busKey": "bus_01", "date": "2026-01-15T10:00:00", "price": 400021 },
-    { "routeKey": "route_hcm_hn", "busKey": "bus_02", "date": "2026-01-15T11:00:00", "price": 400022 },
-    { "routeKey": "route_hcm_hn", "busKey": "bus_03", "date": "2026-01-15T12:00:00", "price": 400023 },
-    { "routeKey": "route_hcm_hn", "busKey": "bus_04", "date": "2026-01-15T13:00:00", "price": 400024 },
-    { "routeKey": "route_hcm_hn", "busKey": "bus_05", "date": "2026-01-15T14:00:00", "price": 400025 },
-    { "routeKey": "route_hn_hcm", "busKey": "bus_01", "date": "2026-01-15T15:00:00", "price": 400026 },
-    { "routeKey": "route_hn_hcm", "busKey": "bus_02", "date": "2026-01-15T16:00:00", "price": 400027 },
-    { "routeKey": "route_hn_hcm", "busKey": "bus_03", "date": "2026-01-15T17:00:00", "price": 400028 },
-    { "routeKey": "route_hn_hcm", "busKey": "bus_04", "date": "2026-01-15T18:00:00", "price": 400029 },
-    { "routeKey": "route_hn_hcm", "busKey": "bus_05", "date": "2026-01-15T19:00:00", "price": 400030 },
+  "routeStops": [
+    { "routeKey": "route_futa_hcm_hn", "stationKey": "st_futa_bxmt", "type": "PICKUP", "orderIndex": 0, "timeOffset": 0 },
+    { "routeKey": "route_futa_hcm_hn", "stationKey": "st_futa_bxn", "type": "DROPOFF", "orderIndex": 1, "timeOffset": 1800 },
+    
+    { "routeKey": "route_tb_hcm_hn", "stationKey": "st_tb_bxmd", "type": "PICKUP", "orderIndex": 0, "timeOffset": 0 },
+    { "routeKey": "route_tb_hcm_hn", "stationKey": "st_tb_bxg", "type": "DROPOFF", "orderIndex": 1, "timeOffset": 1750 },
+    
+    { "routeKey": "route_kumho_hcm_hn", "stationKey": "st_kumho_bxmd", "type": "PICKUP", "orderIndex": 0, "timeOffset": 0 },
+    { "routeKey": "route_kumho_hcm_hn", "stationKey": "st_kumho_bxmd_hn", "type": "DROPOFF", "orderIndex": 1, "timeOffset": 1850 },
 
-    { "routeKey": "route_hcm_hn", "busKey": "bus_01", "date": "2026-01-16T08:00:00", "price": 400031 },
-    { "routeKey": "route_hcm_hn", "busKey": "bus_02", "date": "2026-01-16T09:00:00", "price": 400032 },
-    { "routeKey": "route_hcm_hn", "busKey": "bus_03", "date": "2026-01-16T10:00:00", "price": 400033 },
-    { "routeKey": "route_hcm_hn", "busKey": "bus_04", "date": "2026-01-16T11:00:00", "price": 400034 },
-    { "routeKey": "route_hcm_hn", "busKey": "bus_05", "date": "2026-01-16T12:00:00", "price": 400035 },
-    { "routeKey": "route_hn_hcm", "busKey": "bus_01", "date": "2026-01-16T13:00:00", "price": 400036 },
-    { "routeKey": "route_hn_hcm", "busKey": "bus_02", "date": "2026-01-16T14:00:00", "price": 400037 },
-    { "routeKey": "route_hn_hcm", "busKey": "bus_03", "date": "2026-01-16T15:00:00", "price": 400038 },
-    { "routeKey": "route_hn_hcm", "busKey": "bus_04", "date": "2026-01-16T16:00:00", "price": 400039 },
-    { "routeKey": "route_hn_hcm", "busKey": "bus_05", "date": "2026-01-16T17:00:00", "price": 400040 },
-    { "routeKey": "route_hcm_hn", "busKey": "bus_01", "date": "2026-01-16T18:00:00", "price": 400041 },
-    { "routeKey": "route_hcm_hn", "busKey": "bus_02", "date": "2026-01-16T19:00:00", "price": 400042 },
-    { "routeKey": "route_hcm_hn", "busKey": "bus_03", "date": "2026-01-16T20:00:00", "price": 400043 },
-    { "routeKey": "route_hcm_hn", "busKey": "bus_04", "date": "2026-01-16T21:00:00", "price": 400044 },
-    { "routeKey": "route_hcm_hn", "busKey": "bus_05", "date": "2026-01-16T22:00:00", "price": 400045 },
-    { "routeKey": "route_hn_hcm", "busKey": "bus_01", "date": "2026-01-16T23:00:00", "price": 400046 },
-    { "routeKey": "route_hn_hcm", "busKey": "bus_02", "date": "2026-01-16T06:00:00", "price": 400047 },
-    { "routeKey": "route_hn_hcm", "busKey": "bus_03", "date": "2026-01-16T07:00:00", "price": 400048 },
-    { "routeKey": "route_hn_hcm", "busKey": "bus_04", "date": "2026-01-16T08:00:00", "price": 400049 },
-    { "routeKey": "route_hn_hcm", "busKey": "bus_05", "date": "2026-01-16T09:00:00", "price": 400050 },
-    { "routeKey": "route_hcm_hn", "busKey": "bus_01", "date": "2026-01-16T10:00:00", "price": 400051 },
-    { "routeKey": "route_hcm_hn", "busKey": "bus_02", "date": "2026-01-16T11:00:00", "price": 400052 },
-    { "routeKey": "route_hcm_hn", "busKey": "bus_03", "date": "2026-01-16T12:00:00", "price": 400053 },
-    { "routeKey": "route_hcm_hn", "busKey": "bus_04", "date": "2026-01-16T13:00:00", "price": 400054 },
-    { "routeKey": "route_hcm_hn", "busKey": "bus_05", "date": "2026-01-16T14:00:00", "price": 400055 },
-    { "routeKey": "route_hn_hcm", "busKey": "bus_01", "date": "2026-01-16T15:00:00", "price": 400056 },
-    { "routeKey": "route_hn_hcm", "busKey": "bus_02", "date": "2026-01-16T16:00:00", "price": 400057 },
-    { "routeKey": "route_hn_hcm", "busKey": "bus_03", "date": "2026-01-16T17:00:00", "price": 400058 },
-    { "routeKey": "route_hn_hcm", "busKey": "bus_04", "date": "2026-01-16T18:00:00", "price": 400059 },
-    { "routeKey": "route_hn_hcm", "busKey": "bus_05", "date": "2026-01-16T19:00:00", "price": 400060 }
+    { "routeKey": "route_hl_hcm_hn", "stationKey": "st_hl_bxmd", "type": "PICKUP", "orderIndex": 0, "timeOffset": 0 },
+    { "routeKey": "route_hl_hcm_hn", "stationKey": "st_hl_bxn", "type": "DROPOFF", "orderIndex": 1, "timeOffset": 1900 },
+
+    { "routeKey": "route_lh_hcm_hn", "stationKey": "st_lh_bxmd", "type": "PICKUP", "orderIndex": 0, "timeOffset": 0 },
+    { "routeKey": "route_lh_hcm_hn", "stationKey": "st_lh_bxn", "type": "DROPOFF", "orderIndex": 1, "timeOffset": 1820 }
   ]
 }

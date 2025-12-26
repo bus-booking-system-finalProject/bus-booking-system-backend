@@ -68,11 +68,11 @@ public class EmailService {
         
         // Dummy values for missing fields in Ticket (Implement these based on your Trip entity)
         String pickupTime = formatDateTime(ticket.getPickupTime());
-        String pickupLocation = ticket.getPickupLocation();
-        String pickupAddress = ticket.getPickupAddress();
+        String pickupLocation = ticket.getPickupTripStop().getStation().getName();
+        String pickupAddress = ticket.getPickupTripStop().getFullAddress();
         String dropoffTime = formatDateTime(ticket.getDropoffTime());
-        String dropoffLocation = ticket.getDropoffLocation();
-        String dropoffAddress = ticket.getDropoffAddress();
+        String dropoffLocation = ticket.getDropoffTripStop().getStation().getName();
+        String dropoffAddress = ticket.getDropoffTripStop().getFullAddress();
 
         if (ticket.getTrip() != null) {
              // Example assumptions:

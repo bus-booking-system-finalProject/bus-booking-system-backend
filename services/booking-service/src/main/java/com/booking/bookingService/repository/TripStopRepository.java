@@ -1,5 +1,6 @@
 package com.booking.bookingService.repository;
 
+import com.booking.bookingService.Enum.StopType;
 import com.booking.bookingService.model.TripStop;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
@@ -15,5 +16,5 @@ public interface TripStopRepository extends JpaRepository<TripStop, UUID> {
 
     // Optional: Fetch only Pickups or only Dropoffs for a trip
     // Useful if you want to show them in separate dropdowns
-    List<TripStop> findByTripIdAndType(UUID tripId, TripStop.StopType type);
+    List<TripStop> findByTripIdAndType(UUID tripId, StopType type);
 }

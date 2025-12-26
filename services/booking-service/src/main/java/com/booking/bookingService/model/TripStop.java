@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
 import java.util.UUID;
+import com.booking.bookingService.Enum.StopType;
 
 @Entity
 @Table(name = "trip_stop")
@@ -26,9 +27,7 @@ public class TripStop {
     @JoinColumn(name = "station_id")
     private Station station;
     
-    private LocalDateTime time; // Specific time for this stop
-
-    public enum StopType { PICKUP, DROPOFF }
+    private LocalDateTime time;
 
     // Helper to display full address in UI or Email
     public String getFullAddress() {
