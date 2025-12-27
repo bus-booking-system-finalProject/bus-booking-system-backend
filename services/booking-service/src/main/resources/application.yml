@@ -13,3 +13,6 @@ spring:
         max-attempts: 2
         multiplier: 1.5
         max-interval: 10000
+app:
+  data:
+    init-strategy: ALWAYS

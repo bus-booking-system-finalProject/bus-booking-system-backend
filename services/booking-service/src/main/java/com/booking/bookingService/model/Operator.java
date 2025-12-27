@@ -18,8 +18,6 @@ public class Operator {
     private Double rating;
     private String image;
 
-    public int getTotalReviews() {
-        // TODO
-        return 0;
-    }
+    @Column(name = "total_reviews")
+    private int totalReviews;
 }

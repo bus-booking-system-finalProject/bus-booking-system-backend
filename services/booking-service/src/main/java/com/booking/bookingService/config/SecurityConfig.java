@@ -32,6 +32,8 @@ public class SecurityConfig {
                 .requestMatchers("/error").permitAll()
                 .dispatcherTypeMatchers(DispatcherType.FORWARD, DispatcherType.ERROR).permitAll()
 
+                .requestMatchers("/reviews/**").permitAll()
+
                 // 2. LOGIC VÉ (TICKET) - QUAN TRỌNG:
                 // a. Guest Lock & Unlock ghế (Mới thêm) -> Phải khai báo rõ ràng
                 .requestMatchers(HttpMethod.POST, "/tickets/lock", "/tickets/unlock").permitAll()
@@ -52,8 +54,6 @@ public class SecurityConfig {
                 .requestMatchers("/trips/**", "/buses/**", "/routes/**", "/operators/**").permitAll()
 
                 .requestMatchers("/admin/**").hasRole("ADMIN")
-
-                .requestMatchers(HttpMethod.GET, "/feedback/operators/**").permitAll()
                 
                 .requestMatchers(HttpMethod.POST, "/feedback").authenticated()
 

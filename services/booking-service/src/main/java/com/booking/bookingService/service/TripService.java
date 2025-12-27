@@ -417,6 +417,7 @@ public class TripService {
                 .tripId(trip.getId())
                 .status(trip.getStatus().name())
                 .operator(TripSearchResponse.OperatorDto.builder()
+                        .id(trip.getOperator().getId())
                         .name(trip.getOperator().getName())
                         .image(trip.getOperator().getImage())
                         .ratings(TripSearchResponse.OperatorRating.builder()
