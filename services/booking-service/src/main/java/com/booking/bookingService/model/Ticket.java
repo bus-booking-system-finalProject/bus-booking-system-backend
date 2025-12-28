@@ -1,5 +1,6 @@
 package com.booking.bookingService.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 import java.math.BigDecimal;
@@ -9,19 +10,24 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "ticket") // Đổi tên bảng thành 'ticket'
-@Data @NoArgsConstructor @AllArgsConstructor @Builder
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
 public class Ticket {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
     @Column(unique = true)
-    private String ticketCode; 
+    private String ticketCode;
 
-    private String userEmail; 
-    
+    private String userEmail;
+
     @ManyToOne
     @JoinColumn(name = "trip_id")
+    @JsonIgnoreProperties({ "stops", "bus", "route", "operator" })
     private Trip trip;
 
     private String contactName;
@@ -42,20 +48,25 @@ public class Ticket {
     @ElementCollection
     @CollectionTable(name = "ticket_seats", joinColumns = @JoinColumn(name = "ticket_id"))
     @Column(name = "seat_code")
-    private List<String> seats; 
+    private List<String> seats;
 
     @ManyToOne
     @JoinColumn(name = "pickup_trip_stop_id")
+    @JsonIgnoreProperties({ "trip" })
     private TripStop pickupTripStop;
 
     @ManyToOne
     @JoinColumn(name = "dropoff_trip_stop_id")
+    @JsonIgnoreProperties({ "trip" })
     private TripStop dropoffTripStop;
 
     @OneToOne(mappedBy = "ticket", fetch = FetchType.LAZY)
+    @JsonIgnoreProperties({ "ticket" })
     private Payment payment;
 
-    public enum TicketStatus { PENDING, CONFIRMED, CANCELLED, COMPLETED }
+    public enum TicketStatus {
+        PENDING, CONFIRMED, CANCELLED, COMPLETED
+    }
 
     public String getFullPickupAddress() {
         return pickupTripStop.getFullAddress();

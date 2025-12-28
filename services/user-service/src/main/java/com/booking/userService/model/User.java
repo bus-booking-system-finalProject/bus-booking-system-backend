@@ -1,5 +1,6 @@
 package com.booking.userService.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -20,6 +21,8 @@ import java.util.List;
 @AllArgsConstructor // Lombok: For the builder
 @Entity // Tells JPA this is a table
 @Table(name = "users") // Specifies the table name
+@JsonIgnoreProperties({ "hibernateLazyInitializer", "handler", "password", "authorities", "accountNonExpired",
+        "accountNonLocked", "credentialsNonExpired", "enabled" })
 public class User implements UserDetails {
 
     @Id // Marks this as the Primary Key

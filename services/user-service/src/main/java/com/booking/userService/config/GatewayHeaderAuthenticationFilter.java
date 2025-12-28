@@ -13,49 +13,72 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import com.booking.userService.service.JwtService;
+import com.booking.userService.service.UserDetailsServiceImpl;
 
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
+import static org.springframework.http.HttpHeaders.AUTHORIZATION;
+
 @Component
 public class GatewayHeaderAuthenticationFilter extends OncePerRequestFilter {
+
+    private final JwtService jwtService;
+    private final UserDetailsServiceImpl userDetailsService;
+
+    public GatewayHeaderAuthenticationFilter(JwtService jwtService, UserDetailsServiceImpl userDetailsService) {
+        this.jwtService = jwtService;
+        this.userDetailsService = userDetailsService;
+    }
 
     @Override
     protected void doFilterInternal(
             @NonNull HttpServletRequest request,
             @NonNull HttpServletResponse response,
-            @NonNull FilterChain filterChain
-    ) throws ServletException, IOException {
+            @NonNull FilterChain filterChain) throws ServletException, IOException {
 
-        // 1. Check if headers from Gateway are present
-        String userEmail = request.getHeader("X-User-Email");
-        String userRole = request.getHeader("X-User-Role");
+        // Prefer gateway-provided headers; fallback to JWT for direct calls (local/dev)
+        if (SecurityContextHolder.getContext().getAuthentication() == null) {
+            String userEmail = request.getHeader("X-User-Email");
+            String userRole = request.getHeader("X-User-Role");
 
-        if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            
-            // 2. Construct UserDetails manually (without DB call for speed!)
-            // We trust the Gateway, so we assume this user exists and is authenticated.
-            // If you need strict consistency, you could do a DB lookup here, but that defeats the performance gain.
-            List<SimpleGrantedAuthority> authorities = (userRole != null) 
-                    ? List.of(new SimpleGrantedAuthority(userRole)) 
-                    : Collections.emptyList();
+            if (userEmail != null) {
+                List<SimpleGrantedAuthority> authorities = (userRole != null)
+                        ? List.of(new SimpleGrantedAuthority(userRole))
+                        : Collections.emptyList();
 
-            UserDetails userDetails = new User(userEmail, "", authorities);
-
-            // 3. Create Authentication Token
-            UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                    userDetails,
-                    null,
-                    userDetails.getAuthorities()
-            );
-
-            authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-
-            // 4. Set Context
-            SecurityContextHolder.getContext().setAuthentication(authToken);
+                setAuthentication(request, new User(userEmail, "", authorities));
+            } else {
+                // Direct call: parse Authorization header if present
+                String authHeader = request.getHeader(AUTHORIZATION);
+                if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                    String token = authHeader.substring(7);
+                    try {
+                        String username = jwtService.extractUsername(token);
+                        if (username != null && !jwtService.isTokenExpired(token)) {
+                            UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+                            if (jwtService.isTokenValid(token, userDetails)) {
+                                setAuthentication(request, userDetails);
+                            }
+                        }
+                    } catch (Exception ignored) {
+                        // Invalid token: leave context empty and let entry point handle 401
+                    }
+                }
+            }
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private void setAuthentication(HttpServletRequest request, UserDetails userDetails) {
+        UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                userDetails,
+                null,
+                userDetails.getAuthorities());
+        authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+        SecurityContextHolder.getContext().setAuthentication(authToken);
     }
 }
