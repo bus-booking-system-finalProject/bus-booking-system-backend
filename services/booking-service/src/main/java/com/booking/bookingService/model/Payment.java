@@ -1,5 +1,6 @@
 package com.booking.bookingService.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
@@ -13,16 +14,20 @@ import com.booking.bookingService.Enum.PaymentMethod;
 @Table(name = "payment")
 @Inheritance(strategy = InheritanceType.SINGLE_TABLE) // Key for extensibility
 @DiscriminatorColumn(name = "payment_method", discriminatorType = DiscriminatorType.STRING)
-@Data @NoArgsConstructor @AllArgsConstructor
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
 @SuperBuilder
+@JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
 public abstract class Payment {
-    
+
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "ticket_id")
+    @JsonIgnoreProperties({ "payment", "trip", "pickupTripStop", "dropoffTripStop" })
     private Ticket ticket; // Link to Ticket
 
     private BigDecimal amount;
@@ -32,13 +37,15 @@ public abstract class Payment {
 
     private LocalDateTime createdAt;
     private LocalDateTime paidAt;
-    
+
     // Read-only helper to get the method from the discriminator
-    @Transient 
+    @Transient
     public abstract PaymentMethod getMethod();
 
-    public enum PaymentStatus { PENDING, PAID, FAILED, REFUNDING, REFUNDED }
-    
+    public enum PaymentStatus {
+        PENDING, PAID, FAILED, REFUNDING, REFUNDED
+    }
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
