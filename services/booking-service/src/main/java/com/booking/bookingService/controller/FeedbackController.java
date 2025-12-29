@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 
 @RestController
@@ -40,6 +41,26 @@ public class FeedbackController {
         response.put("message", "Feedback submitted successfully");
 
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    // GET /feedback/me?tripId={tripId}
+    @GetMapping("/me")
+    public ResponseEntity<?> getMyFeedback(
+            @RequestParam UUID tripId,
+            @AuthenticationPrincipal UserDetails currentUser
+    ) {
+        if (currentUser == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User must be logged in");
+        }
+
+        FeedbackResponse data = feedbackService.getMyFeedbackForTrip(tripId, currentUser.getUsername());
+
+        // We return 200 OK even if data is null (meaning "No review yet")
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("data", data); 
+        
+        return ResponseEntity.ok(response);
     }
 
 }

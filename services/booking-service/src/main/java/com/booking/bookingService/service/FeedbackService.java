@@ -127,4 +127,12 @@ public class FeedbackService {
                 .submittedAt(feedback.getSubmittedAt())
                 .build();
     }
+
+    // --- NEW FEATURE: Get My Review ---
+    @Transactional(readOnly = true)
+    public FeedbackResponse getMyFeedbackForTrip(UUID tripId, String userEmail) {
+        return feedbackRepository.findByTripIdAndUserEmail(tripId, userEmail)
+                .map(this::mapToResponse)
+                .orElse(null); // Return null if not found (Controller will handle this)
+    }
 }
