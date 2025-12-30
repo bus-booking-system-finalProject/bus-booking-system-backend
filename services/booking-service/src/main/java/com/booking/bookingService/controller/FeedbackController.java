@@ -1,5 +1,6 @@
 package com.booking.bookingService.controller;
 
+import com.booking.bookingService.dto.ApiResponse;
 import com.booking.bookingService.dto.feedback.FeedbackRequest;
 import com.booking.bookingService.dto.feedback.FeedbackResponse;
 import com.booking.bookingService.service.FeedbackService;
@@ -12,8 +13,6 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
-import java.util.Map;
 import java.util.UUID;
 
 
@@ -35,12 +34,7 @@ public class FeedbackController {
 
         FeedbackResponse responseDto = feedbackService.createFeedback(request, currentUser.getUsername());
 
-        Map<String, Object> response = new HashMap<>();
-        response.put("success", true);
-        response.put("data", responseDto);
-        response.put("message", "Feedback submitted successfully");
-
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(responseDto, "Feedback submitted successfully"));
     }
 
     // GET /feedback/me?tripId={tripId}
@@ -55,12 +49,7 @@ public class FeedbackController {
 
         FeedbackResponse data = feedbackService.getMyFeedbackForTrip(tripId, currentUser.getUsername());
 
-        // We return 200 OK even if data is null (meaning "No review yet")
-        Map<String, Object> response = new HashMap<>();
-        response.put("success", true);
-        response.put("data", data); 
-        
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success(data, null));
     }
 
 }

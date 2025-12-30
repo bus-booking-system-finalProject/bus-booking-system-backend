@@ -1,9 +1,9 @@
-// src/main/java/com/booking/bookingService/controller/AdminAnalyticsController.java
 package com.booking.bookingService.controller;
 
 import com.booking.bookingService.dto.analytics.RevenueTrendDto;
 import com.booking.bookingService.dto.analytics.PopularRouteDto;
 import com.booking.bookingService.dto.analytics.ConversionRateDto;
+import com.booking.bookingService.dto.ApiResponse;
 import com.booking.bookingService.dto.analytics.AnalyticsSummaryDto;
 import com.booking.bookingService.service.AnalyticsService;
 import lombok.RequiredArgsConstructor;
@@ -13,9 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/admin/analytics")
@@ -34,12 +32,7 @@ public class AdminAnalyticsController {
     ) {
         List<RevenueTrendDto> trends = analyticsService.getBookingTrends(startDate, endDate);
 
-        Map<String, Object> response = new HashMap<>();
-        response.put("success", true);
-        response.put("data", trends);
-        response.put("message", "Booking trends retrieved successfully (Status: CANCELLED)");
-
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success(trends, "Booking trends retrieved successfully (Status: CANCELLED)"));
     }
 
     // API: GET /admin/analytics/routes/popular?limit=5
@@ -51,12 +44,7 @@ public class AdminAnalyticsController {
     ) {
         List<PopularRouteDto> routes = analyticsService.getPopularRoutes(startDate, endDate, limit);
 
-        Map<String, Object> response = new HashMap<>();
-        response.put("success", true);
-        response.put("data", routes);
-        response.put("message", "Popular routes retrieved successfully (Status: CANCELLED)");
-
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success(routes, "Popular routes retrieved successfully (Status: CANCELLED)"));
     }
 
     // API: GET /admin/analytics/conversion
@@ -67,12 +55,7 @@ public class AdminAnalyticsController {
     ) {
         ConversionRateDto data = analyticsService.getConversionRate(startDate, endDate);
 
-        Map<String, Object> response = new HashMap<>();
-        response.put("success", true);
-        response.put("data", data);
-        response.put("message", "Conversion rate calculated successfully");
-
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success(data, "Conversion rate calculated successfully"));
     }
 
     // API: GET /admin/analytics/summary
@@ -83,11 +66,6 @@ public class AdminAnalyticsController {
     ) {
         AnalyticsSummaryDto summary = analyticsService.getSummaryStats(startDate, endDate);
 
-        Map<String, Object> response = new HashMap<>();
-        response.put("success", true);
-        response.put("data", summary);
-        response.put("message", "Dashboard summary retrieved successfully");
-
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success(summary, "Dashboard summary retrieved successfully"));
     }
 }

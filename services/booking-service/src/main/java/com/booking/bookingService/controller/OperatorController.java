@@ -6,6 +6,8 @@ import com.booking.bookingService.dto.operator.OperatorRequest;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -24,7 +26,10 @@ public class OperatorController {
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<Operator>> createOperator(@Valid @RequestPart("operator") OperatorRequest request, @RequestPart(value = "file", required = false) MultipartFile file) {
-        return ResponseEntity.ok(ApiResponse.success(operatorService.createOperator(request, file), "Operator created successfully"));
+        return new ResponseEntity<>(
+            ApiResponse.success(operatorService.createOperator(request, file), "Operator created successfully"),
+            HttpStatus.CREATED
+        );
     }
 
     @GetMapping

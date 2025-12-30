@@ -1,9 +1,11 @@
 package com.booking.bookingService.controller;
 
+import com.booking.bookingService.dto.ApiResponse;
 import com.booking.bookingService.dto.ticket.SeatMapResponse;
 import com.booking.bookingService.dto.trip.TripRequest;
 import com.booking.bookingService.dto.trip.TripSearchRequest;
 import com.booking.bookingService.dto.trip.TripSearchResponse;
+import com.booking.bookingService.model.Trip;
 import com.booking.bookingService.service.TripService;
 import com.booking.bookingService.service.SearchLogService;
 
@@ -28,30 +30,20 @@ public class TripController {
 
     @PostMapping
     public ResponseEntity<?> createTrip(@Valid @RequestBody TripRequest request) {
-        Map<String, Object> response = new HashMap<>();
-        response.put("success", true);
-        response.put("data", tripService.createTrip(request));
-        response.put("message", "Trip created successfully");
-        return new ResponseEntity<>(response, HttpStatus.CREATED);
+        Trip trip = tripService.createTrip(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(trip, "Trip created successfully"));
     }
 
     @PutMapping("/{tripId}")
     public ResponseEntity<?> updateTrip(@PathVariable UUID tripId, @Valid @RequestBody TripRequest request) {
-        Map<String, Object> response = new HashMap<>();
-        response.put("success", true);
-        response.put("data", tripService.updateTrip(tripId, request));
-        response.put("message", "Trip updated successfully");
-        return ResponseEntity.ok(response);
+        Trip trip = tripService.updateTrip(tripId, request);
+        return ResponseEntity.ok(ApiResponse.success(trip, "Trip updated successfully"));
     }
 
     @DeleteMapping("/{tripId}")
     public ResponseEntity<?> deleteTrip(@PathVariable UUID tripId) {
         tripService.deleteTrip(tripId);
-        Map<String, Object> response = new HashMap<>();
-        response.put("success", true);
-        response.put("data", null);
-        response.put("message", "Trip deleted successfully");
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success(null, "Trip deleted successfully"));
     }
 
     @GetMapping("/search")
@@ -79,26 +71,16 @@ public class TripController {
     }
 
     @GetMapping("/{tripId}")
-    public ResponseEntity<Map<String, Object>> getTripDetail(@PathVariable UUID tripId) {
+    public ResponseEntity<?> getTripDetail(@PathVariable UUID tripId) {
         TripSearchResponse trip = tripService.getTripById(tripId);
         
-        Map<String, Object> response = new HashMap<>();
-        response.put("success", true);
-        response.put("data", trip);
-        response.put("message", "Trip details retrieved successfully");
-
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success(trip, "Trip details retrieved successfully"));
     }
 
     @GetMapping("/{tripId}/seats")
-    public ResponseEntity<Map<String, Object>> getSeatMap(@PathVariable UUID tripId) {
+    public ResponseEntity<?> getSeatMap(@PathVariable UUID tripId) {
         SeatMapResponse seatMap = tripService.getSeatMap(tripId);
 
-        Map<String, Object> response = new HashMap<>();
-        response.put("success", true);
-        response.put("data", seatMap);
-        response.put("message", "Seat map retrieved successfully");
-
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success(seatMap, "Seat map retrieved successfully"));
     }
 }
