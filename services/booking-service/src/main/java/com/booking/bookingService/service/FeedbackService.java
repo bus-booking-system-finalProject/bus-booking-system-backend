@@ -72,7 +72,6 @@ public class FeedbackService {
         // 3. Fetch Data
         Page<Feedback> feedbackPage = feedbackRepository.findByOperatorId(operatorId, pageable);
         Double avgRating = feedbackRepository.getAverageRatingForOperator(operatorId);
-        Long totalCount = feedbackRepository.countByOperatorId(operatorId); // Or simply use feedbackPage.getTotalElements()
 
         // 4. Map Reviews
         List<FeedbackResponse> reviewList = feedbackPage.getContent().stream()

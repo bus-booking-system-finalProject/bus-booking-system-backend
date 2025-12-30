@@ -17,9 +17,4 @@ public class Operator {
     private String contactPhone;
     private Double rating;
     private String image;
-
-    public int getTotalReviews() {
-        // TODO
-        return 0;
-    }
 }

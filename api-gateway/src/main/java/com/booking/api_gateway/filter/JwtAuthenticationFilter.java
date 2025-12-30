@@ -8,16 +8,25 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
+import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
+import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
+import org.springframework.http.MediaType;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import org.springframework.util.AntPathMatcher;
 import reactor.core.publisher.Mono;
 
 import javax.crypto.SecretKey;
+
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Component
 public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
@@ -29,6 +38,7 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
     private List<String> publicEndpoints;
 
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
@@ -55,7 +65,7 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
                 return chain.filter(exchange);
             } else {
                 // Nếu là Private -> Bắt buộc Login -> Lỗi 401
-                return onError(exchange, HttpStatus.UNAUTHORIZED);
+                return onError(exchange, HttpStatus.UNAUTHORIZED, "Authentication failed: No Access Token");
             }
         }
 
@@ -85,13 +95,30 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
             }
             
             // Nếu là private endpoint mà token lỗi -> Chặn 401
-            return onError(exchange, HttpStatus.UNAUTHORIZED);
+            return onError(exchange, HttpStatus.UNAUTHORIZED, "Authentication failed: Invalid or Expired Token");
         }
     }
 
-    private Mono<Void> onError(ServerWebExchange exchange, HttpStatus status) {
-        exchange.getResponse().setStatusCode(status);
-        return exchange.getResponse().setComplete();
+    private Mono<Void> onError(ServerWebExchange exchange, HttpStatus status, String message) {
+        ServerHttpResponse response = exchange.getResponse();
+        response.setStatusCode(status);
+        response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
+
+        // 1. Create a Map to represent the JSON object manually
+        Map<String, Object> errorDetails = new HashMap<>();
+        errorDetails.put("success", false);
+        errorDetails.put("message", message);
+        errorDetails.put("data", null);
+
+        // 2. Convert Map to JSON Bytes
+        try {
+            byte[] bytes = objectMapper.writeValueAsBytes(errorDetails);
+            DataBuffer buffer = response.bufferFactory().wrap(bytes);
+            return response.writeWith(Mono.just(buffer));
+        } catch (JsonProcessingException e) {
+            // Fallback if JSON conversion fails
+            return response.setComplete();
+        }
     }
 
     private SecretKey getSignInKey() {

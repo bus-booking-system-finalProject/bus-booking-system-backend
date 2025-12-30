@@ -82,7 +82,6 @@ public class TripSearchResponse {
         private UUID stopId;
         private String name;
         private String address;
-        private String type; // PICKUP or DROPOFF
-        private LocalDateTime time;
+        private int duration;
     }
 }

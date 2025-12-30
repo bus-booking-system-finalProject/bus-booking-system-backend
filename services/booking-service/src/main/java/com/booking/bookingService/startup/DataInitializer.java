@@ -25,7 +25,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
@@ -40,7 +39,6 @@ public class DataInitializer implements CommandLineRunner {
     private final TripSeatRepository seatStatusRepository;
     private final StationRepository stationRepository;
     private final RouteStopRepository routeStopRepository;
-    private final TripStopRepository tripStopRepository;
     
     private final ObjectMapper objectMapper;
 
@@ -87,7 +85,6 @@ public class DataInitializer implements CommandLineRunner {
         entityManager.createNativeQuery("TRUNCATE TABLE ticket_seats CASCADE").executeUpdate();
         entityManager.createNativeQuery("TRUNCATE TABLE ticket CASCADE").executeUpdate();
         entityManager.createNativeQuery("TRUNCATE TABLE trip_seat CASCADE").executeUpdate();
-        entityManager.createNativeQuery("TRUNCATE TABLE trip_stop CASCADE").executeUpdate();
         entityManager.createNativeQuery("TRUNCATE TABLE route_stop CASCADE").executeUpdate();
         
         entityManager.createNativeQuery("TRUNCATE TABLE trip CASCADE").executeUpdate();
@@ -114,7 +111,7 @@ public class DataInitializer implements CommandLineRunner {
                         .name(opData.getName())
                         .contactEmail(opData.getEmail())
                         .contactPhone(opData.getPhone())
-                        .image("////////////static.vexere.com/c/i/535/xe-tra-lan-vien-VeXeRe-ITSpW3J-1000x600.jpeg")
+                        .image(opData.getImage())
                         .rating(opData.getRating())
                         .build();
                 operatorRepository.save(op);
@@ -160,6 +157,7 @@ public class DataInitializer implements CommandLineRunner {
                 if (op == null) continue;
                 Route route = Route.builder()
                         .operator(op)
+                        .name(routeData.getName())
                         .origin(routeData.getOrigin())
                         .destination(routeData.getDestination())
                         .distanceKm(routeData.getDistance())
@@ -179,8 +177,9 @@ public class DataInitializer implements CommandLineRunner {
                             .route(route)
                             .station(station)
                             .type(StopType.valueOf(rsData.getType()))
-                            .orderIndex(rsData.getOrderIndex())
-                            .timeOffsetMinutes(rsData.getTimeOffset())
+                            .duration(rsData.getDuration())
+                            .isOrigin(rsData.getIsOrigin())
+                            .isDestination(rsData.getIsDestination())
                             .build();
                     routeStopRepository.save(rs);
                 }
@@ -252,8 +251,6 @@ public class DataInitializer implements CommandLineRunner {
                     int availableSeats = initializeSeatStatusesForTrip(trip, bus);
                     trip.setAvailableSeats(availableSeats);
                     tripRepository.save(trip);
-
-                    generateTripStopsFromTemplate(trip, route);
                 }
                 
                 // Advance time
@@ -269,22 +266,6 @@ public class DataInitializer implements CommandLineRunner {
                 .filter(b -> b.getOperator().getId().equals(operator.getId()))
                 .findAny() // In real logic, rotate or check schedule
                 .orElse(null);
-    }
-
-    private void generateTripStopsFromTemplate(Trip trip, Route route) {
-        List<RouteStop> templates = routeStopRepository.findByRouteIdOrderByOrderIndexAsc(route.getId());
-        if (templates.isEmpty()) return;
-        
-        List<TripStop> tripStops = templates.stream().map(rs -> {
-            return TripStop.builder()
-                    .trip(trip)
-                    .station(rs.getStation())
-                    .type(rs.getType())
-                    .orderIndex(rs.getOrderIndex())
-                    .time(trip.getDepartureTime().plusMinutes(rs.getTimeOffsetMinutes()))
-                    .build();
-        }).collect(Collectors.toList());
-        tripStopRepository.saveAll(tripStops);
     }
 
     private void generatePhysicalSeatsForBus(Bus bus) {
@@ -330,6 +311,6 @@ public class DataInitializer implements CommandLineRunner {
     @Data static class OperatorData { private String key; private String name; private String email; private String phone; private double rating; private String image; }
     @Data static class BusData { private String key; private String operatorKey; private String model; private String plateNumber; private int capacity; private String type; }
     @Data static class StationData { private String key; private String operatorKey; private String name; private String address; private String ward; private String city; }
-    @Data static class RouteData { private String key; private String operatorKey; private String origin; private String destination; private int distance; private int minutes; }
-    @Data static class RouteStopData { private String routeKey; private String stationKey; private String type; private int orderIndex; private int timeOffset; }
+    @Data static class RouteData { private String key; private String operatorKey; private String name; private String origin; private String destination; private int distance; private int minutes; }
+    @Data static class RouteStopData { private String routeKey; private String stationKey; private String type; private int duration; private Boolean isOrigin; Boolean isDestination; }
 }

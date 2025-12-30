@@ -14,4 +14,6 @@ public class OperatorRequest {
 
     @NotBlank(message = "Phone number is required")
     private String contactPhone;
+
+    private String image;
 }

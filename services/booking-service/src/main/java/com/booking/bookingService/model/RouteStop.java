@@ -25,9 +25,15 @@ public class RouteStop {
     @Enumerated(EnumType.STRING)
     private StopType type; // PICKUP or DROPOFF
 
-    private int orderIndex; // 0, 1, 2... sequence
-    
-    // How many minutes after Departure Time does the bus arrive here?
-    // e.g., 0 for start point, 30 for first pickup, 360 (6 hours) for destination
-    private int timeOffsetMinutes;
+    private int duration;
+
+    @Column(columnDefinition = "boolean default false")
+    private boolean isOrigin;
+
+    @Column(columnDefinition = "boolean default false")
+    private boolean isDestination;
+
+    public String getFullAddress() {
+        return String.format("%s, %s, %s", station.getAddress(), station.getWard(), station.getCity());
+    }
 }

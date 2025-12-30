@@ -31,11 +31,22 @@ public class TicketDetailResponse {
         private String operator;
         private LocalDateTime departureTime;
         private LocalDateTime arrivalTime;
+        private int duration;
+        private StopDto from;
+        private StopDto to;
     }
     
     @Data @Builder
     public static class PricingDto {
         private BigDecimal total;
         private String currency;
+    }
+
+    @Data @Builder
+    public static class StopDto {
+        private UUID stopId;
+        private String name;
+        private String address;
+        private LocalDateTime time;
     }
 }

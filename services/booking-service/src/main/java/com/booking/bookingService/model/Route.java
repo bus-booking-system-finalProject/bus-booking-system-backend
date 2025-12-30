@@ -2,7 +2,11 @@ package com.booking.bookingService.model;
 
 import jakarta.persistence.*;
 import lombok.*;
+
+import java.util.List;
 import java.util.UUID;
+
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 @Entity
 @Table(name = "route")
@@ -12,6 +16,9 @@ public class Route {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    @Column(nullable = false)
+    private String name;
+
     @ManyToOne
     @JoinColumn(name = "operator_id")
     private Operator operator;
@@ -20,4 +27,8 @@ public class Route {
     private String destination;
     private int distanceKm;
     private int estimatedMinutes;
+
+    @OneToMany(mappedBy = "route", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnoreProperties("route")
+    private List<RouteStop> stops;
 }

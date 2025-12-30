@@ -12,6 +12,8 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+import com.booking.bookingService.security.CustomAccessDeniedHandler;
+
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor
@@ -20,12 +22,14 @@ public class SecurityConfig {
     private final GatewayAuthenticationFilter gatewayAuthenticationFilter;
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, CustomAccessDeniedHandler accessDeniedHandler) throws Exception {
         http
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .addFilterBefore(gatewayAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-            
+            .exceptionHandling(exception -> exception
+                .accessDeniedHandler(accessDeniedHandler)
+            )
             .authorizeHttpRequests(auth -> auth
                 // 1. Cấu hình cơ bản
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
@@ -49,8 +53,10 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/tickets/{id:[0-9a-fA-F-]{36}}").permitAll()
 
                 // 3. MASTER DATA
-                .requestMatchers("/trips/**", "/buses/**", "/routes/**", "/operators/**").permitAll()
+                .requestMatchers("/trips/**").permitAll()
 
+                // ADMIN
+                .requestMatchers("/operators/**", "/buses**", "/routes/**").hasRole("ADMIN")
                 .requestMatchers("/admin/**").hasRole("ADMIN")
 
                 .requestMatchers(HttpMethod.GET, "/feedback/operators/**").permitAll()

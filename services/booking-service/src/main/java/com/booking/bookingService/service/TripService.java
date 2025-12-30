@@ -19,7 +19,6 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
 @Service
@@ -31,9 +30,7 @@ public class TripService {
     private final SeatRepository seatRepository;
     private final RouteRepository routeRepository;
     private final TripSeatRepository seatStatusRepository;
-    private final RouteStopRepository routeStopRepository;
-    private final TripStopRepository tripStopRepository;
-    private final StationRepository stationRepository;
+    private final FeedbackRepository feedbackRepository;
     private final RedisLockService redisLockService;
 
     public Trip createTrip(TripRequest request) {
@@ -76,15 +73,6 @@ public class TripService {
 
         initializeSeatsForTrip(savedTrip, bus);
 
-        // Handle Stops (Default vs Custom)
-        if (request.getStops() != null && !request.getStops().isEmpty()) {
-            // Custom list provided by Operator
-            createCustomTripStops(savedTrip, request.getStops());
-        } else {
-            // Default: Copy from Route template
-            generateTripStopsFromTemplate(savedTrip, route);
-        }
-
         return trip;
     }
 
@@ -115,21 +103,6 @@ public class TripService {
         }
 
         tripRepository.save(trip);
-
-        if (request.getStops() != null && !request.getStops().isEmpty()) {
-            // 1. Delete existing stops
-            List<TripStop> oldStops = tripStopRepository.findByTripId(tripId);
-            tripStopRepository.deleteAll(oldStops);
-
-            // 2. Create new stops from request
-            createCustomTripStops(trip, request.getStops());
-        } else {
-            // Optional: If you want to allow "Reset to Default" by sending empty list,
-            // you could uncomment the logic here. For now, empty list = "No Change"
-            // is usually safer for Updates, OR you can force them to send the list every
-            // time.
-            // Logic below assumes: If provided -> Replace. If null -> Keep existing.
-        }
 
         // NOTE: If bus changes, we technically need to regenerate SeatStatuses.
         // This complexity is omitted for brevity but important in production.
@@ -367,18 +340,15 @@ public class TripService {
 
     // --- Helper Mapper ---
     private TripSearchResponse mapToTripResponse(Trip trip) {
-        // 1. Fetch Stops for this Trip
-        List<TripStop> allStops = tripStopRepository.findByTripId(trip.getId());
+        List<RouteStop> routeStops = trip.getRoute().getStops();
 
-        List<TripSearchResponse.StopDto> pickupPoints = allStops.stream()
-                .filter(stop -> stop.getType() == StopType.PICKUP)
-                .sorted(Comparator.comparingInt(TripStop::getOrderIndex))
+        // 1. Map Pickup/Dropoff Stop to Dto
+        List<TripSearchResponse.StopDto> pickupPoints = routeStops.stream()
                 .map(this::mapToStopDto)
                 .collect(Collectors.toList());
 
-        List<TripSearchResponse.StopDto> dropoffPoints = allStops.stream()
+        List<TripSearchResponse.StopDto> dropoffPoints = routeStops.stream()
                 .filter(stop -> stop.getType() == StopType.DROPOFF)
-                .sorted(Comparator.comparingInt(TripStop::getOrderIndex))
                 .map(this::mapToStopDto)
                 .collect(Collectors.toList());
 
@@ -398,20 +368,18 @@ public class TripService {
                 .dropoffPoints(dropoffPoints)
                 .build();
 
-        TripSearchResponse.StopDto fromStopDto = null;
-        TripSearchResponse.StopDto toStopDto = null;
-        
-        int randomIndex = 0;
+        // Determine the specific Start (From) and End (To) points using Entity flags
+        TripSearchResponse.StopDto fromStopDto = routeStops.stream()
+                .filter(stop -> stop.isOrigin())        // Check the Entity flag
+                .findFirst()
+                .map(this::mapToStopDto)                // Map the found entity to DTO
+                .orElse(!pickupPoints.isEmpty() ? pickupPoints.get(0) : null); // Fallback to first if not found
 
-        if (!pickupPoints.isEmpty()) {
-            randomIndex = ThreadLocalRandom.current().nextInt(pickupPoints.size());
-            fromStopDto = pickupPoints.get(randomIndex);
-        }
-
-        if (!dropoffPoints.isEmpty()) {
-            randomIndex = ThreadLocalRandom.current().nextInt(dropoffPoints.size());
-            toStopDto = dropoffPoints.get(randomIndex);
-        }
+        TripSearchResponse.StopDto toStopDto = routeStops.stream()
+                .filter(stop -> stop.isDestination())   // Check the Entity flag
+                .findFirst()
+                .map(this::mapToStopDto)                // Map the found entity to DTO
+                .orElse(!dropoffPoints.isEmpty() ? dropoffPoints.get(dropoffPoints.size() - 1) : null); // Fallback to last
 
         return TripSearchResponse.builder()
                 .tripId(trip.getId())
@@ -421,7 +389,7 @@ public class TripService {
                         .image(trip.getOperator().getImage())
                         .ratings(TripSearchResponse.OperatorRating.builder()
                                 .overall(trip.getOperator().getRating())
-                                .reviews(trip.getOperator().getTotalReviews())
+                                .reviews(feedbackRepository.countByOperatorId(trip.getOperator().getId()).intValue())
                                 .build())
                         .build())
                 .route(routeDto)
@@ -444,13 +412,12 @@ public class TripService {
                 .build();
     }
 
-    private TripSearchResponse.StopDto mapToStopDto(TripStop stop) {
+    private TripSearchResponse.StopDto mapToStopDto(RouteStop stop) {
         return TripSearchResponse.StopDto.builder()
                 .stopId(stop.getId())
                 .name(stop.getStation().getName())
                 .address(stop.getFullAddress())
-                .type(stop.getType().name())
-                .time(stop.getTime())
+                .duration(stop.getDuration())
                 .build();
     }
 
@@ -464,51 +431,6 @@ public class TripService {
         if (!conflicts.isEmpty()) {
             throw new IllegalStateException("The selected bus is already booked for this time slot.");
         }
-    }
-
-    // --- Helper: Create Custom Stops ---
-    private void createCustomTripStops(Trip trip, List<TripRequest.TripStopDto> stopDtos) {
-        List<TripStop> newStops = new ArrayList<>();
-
-        for (TripRequest.TripStopDto dto : stopDtos) {
-            Station station = stationRepository.findById(dto.getStationId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Station not found: " + dto.getStationId()));
-
-            StopType type = StopType.valueOf(dto.getType().toUpperCase());
-
-            TripStop stop = TripStop.builder()
-                    .trip(trip)
-                    .station(station)
-                    .type(type)
-                    .orderIndex(dto.getOrderIndex())
-                    // Calculate absolute time: Departure + Offset
-                    .time(trip.getDepartureTime().plusMinutes(dto.getTimeOffsetMinutes()))
-                    .build();
-
-            newStops.add(stop);
-        }
-
-        tripStopRepository.saveAll(newStops);
-    }
-
-    // --- Helper: Default Template ---
-    private void generateTripStopsFromTemplate(Trip trip, Route route) {
-        List<RouteStop> templates = routeStopRepository.findByRouteIdOrderByOrderIndexAsc(route.getId());
-
-        if (templates.isEmpty())
-            return;
-
-        List<TripStop> tripStops = templates.stream().map(rs -> {
-            return TripStop.builder()
-                    .trip(trip)
-                    .station(rs.getStation())
-                    .type(rs.getType())
-                    .orderIndex(rs.getOrderIndex())
-                    .time(trip.getDepartureTime().plusMinutes(rs.getTimeOffsetMinutes()))
-                    .build();
-        }).collect(Collectors.toList());
-
-        tripStopRepository.saveAll(tripStops);
     }
 
     // --- Helper: Initialize Seats ---
