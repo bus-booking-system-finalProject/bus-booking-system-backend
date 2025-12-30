@@ -1,8 +1,8 @@
 package com.booking.bookingService.service;
 
-import com.booking.bookingService.dto.FeedbackRequest;
-import com.booking.bookingService.dto.FeedbackResponse;
-import com.booking.bookingService.dto.OperatorReviewsResponse;
+import com.booking.bookingService.dto.feedback.FeedbackRequest;
+import com.booking.bookingService.dto.feedback.FeedbackResponse;
+import com.booking.bookingService.dto.operator.OperatorReviewsResponse;
 import com.booking.bookingService.exception.ResourceNotFoundException;
 import com.booking.bookingService.model.Feedback;
 import com.booking.bookingService.model.Operator;

@@ -1,8 +1,8 @@
 package com.booking.bookingService.controller;
 
-import com.booking.bookingService.dto.BusRequest;
-import com.booking.bookingService.dto.BusResponse;
-import com.booking.bookingService.dto.SeatDefinition;
+import com.booking.bookingService.dto.bus.BusRequest;
+import com.booking.bookingService.dto.bus.BusResponse;
+import com.booking.bookingService.dto.ticket.SeatDefinition;
 import com.booking.bookingService.model.Bus;
 import com.booking.bookingService.service.BusService;
 import jakarta.validation.Valid;

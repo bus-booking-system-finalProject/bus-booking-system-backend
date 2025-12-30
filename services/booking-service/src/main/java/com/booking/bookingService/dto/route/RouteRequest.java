@@ -1,4 +1,4 @@
-package com.booking.bookingService.dto;
+package com.booking.bookingService.dto.route;
 
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;

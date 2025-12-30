@@ -1,8 +1,10 @@
-package com.booking.bookingService.dto;
+package com.booking.bookingService.dto.operator;
 
 import lombok.Builder;
 import lombok.Data;
 import java.util.List;
+
+import com.booking.bookingService.dto.feedback.FeedbackResponse;
 
 @Data @Builder
 public class OperatorReviewsResponse {

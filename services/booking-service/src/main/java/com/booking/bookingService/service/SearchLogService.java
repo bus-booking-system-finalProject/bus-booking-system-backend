@@ -1,7 +1,7 @@
 // src/main/java/com/booking/bookingService/service/SearchLogService.java
 package com.booking.bookingService.service;
 
-import com.booking.bookingService.dto.TripSearchRequest;
+import com.booking.bookingService.dto.trip.TripSearchRequest;
 import com.booking.bookingService.model.SearchLog;
 import com.booking.bookingService.repository.SearchLogRepository;
 import lombok.RequiredArgsConstructor;

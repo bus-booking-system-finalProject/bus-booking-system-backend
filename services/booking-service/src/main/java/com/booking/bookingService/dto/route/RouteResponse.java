@@ -1,4 +1,4 @@
-package com.booking.bookingService.dto;
+package com.booking.bookingService.dto.route;
 
 import java.util.List;
 import java.util.UUID;

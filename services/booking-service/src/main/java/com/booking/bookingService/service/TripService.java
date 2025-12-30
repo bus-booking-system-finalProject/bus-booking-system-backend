@@ -1,7 +1,10 @@
 package com.booking.bookingService.service;
 
 import com.booking.bookingService.Enum.StopType;
-import com.booking.bookingService.dto.*;
+import com.booking.bookingService.dto.ticket.SeatMapResponse;
+import com.booking.bookingService.dto.trip.TripRequest;
+import com.booking.bookingService.dto.trip.TripSearchRequest;
+import com.booking.bookingService.dto.trip.TripSearchResponse;
 import com.booking.bookingService.model.*;
 import com.booking.bookingService.repository.*;
 import com.booking.bookingService.exception.ResourceNotFoundException;

@@ -1,8 +1,8 @@
 package com.booking.bookingService.service;
 
-import com.booking.bookingService.dto.RouteRequest;
-import com.booking.bookingService.dto.RouteResponse;
-import com.booking.bookingService.dto.RouteStopResponse;
+import com.booking.bookingService.dto.route.RouteRequest;
+import com.booking.bookingService.dto.route.RouteResponse;
+import com.booking.bookingService.dto.route.RouteStopResponse;
 import com.booking.bookingService.exception.ResourceNotFoundException;
 import com.booking.bookingService.model.Operator;
 import com.booking.bookingService.model.Route;

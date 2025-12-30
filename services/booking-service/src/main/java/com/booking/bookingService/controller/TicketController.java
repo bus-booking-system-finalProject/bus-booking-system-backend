@@ -1,10 +1,10 @@
 package com.booking.bookingService.controller;
 
-import com.booking.bookingService.dto.SeatLockRequest; // Import DTO mới
-import com.booking.bookingService.dto.TicketLookupResponse;
-import com.booking.bookingService.dto.TicketRequest;
-import com.booking.bookingService.dto.CancelTicketRequest;
-import com.booking.bookingService.dto.GuestLookupRequest;
+import com.booking.bookingService.dto.ticket.CancelTicketRequest;
+import com.booking.bookingService.dto.ticket.GuestLookupRequest;
+import com.booking.bookingService.dto.ticket.SeatLockRequest;
+import com.booking.bookingService.dto.ticket.TicketLookupResponse;
+import com.booking.bookingService.dto.ticket.TicketRequest;
 import com.booking.bookingService.service.TicketService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

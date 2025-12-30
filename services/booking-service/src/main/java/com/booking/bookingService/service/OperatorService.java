@@ -1,6 +1,6 @@
 package com.booking.bookingService.service;
 
-import com.booking.bookingService.dto.OperatorRequest;
+import com.booking.bookingService.dto.operator.OperatorRequest;
 import com.booking.bookingService.exception.ResourceNotFoundException;
 import com.booking.bookingService.model.Operator;
 import com.booking.bookingService.repository.OperatorRepository;

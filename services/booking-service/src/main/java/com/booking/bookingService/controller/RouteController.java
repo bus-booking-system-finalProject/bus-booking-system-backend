@@ -1,6 +1,6 @@
 package com.booking.bookingService.controller;
 
-import com.booking.bookingService.dto.RouteRequest;
+import com.booking.bookingService.dto.route.RouteRequest;
 import com.booking.bookingService.service.RouteService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

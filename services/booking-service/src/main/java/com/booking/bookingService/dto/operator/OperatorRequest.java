@@ -1,4 +1,4 @@
-package com.booking.bookingService.dto;
+package com.booking.bookingService.dto.operator;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;

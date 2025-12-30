@@ -1,6 +1,6 @@
 package com.booking.bookingService.controller;
 
-import com.booking.bookingService.dto.OperatorReviewsResponse;
+import com.booking.bookingService.dto.operator.OperatorReviewsResponse;
 import com.booking.bookingService.service.FeedbackService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;

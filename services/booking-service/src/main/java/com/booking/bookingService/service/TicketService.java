@@ -1,6 +1,14 @@
 package com.booking.bookingService.service;
 
-import com.booking.bookingService.dto.*;
+import com.booking.bookingService.dto.ticket.CancelTicketRequest;
+import com.booking.bookingService.dto.ticket.GuestLookupRequest;
+import com.booking.bookingService.dto.ticket.SeatLockRequest;
+import com.booking.bookingService.dto.ticket.TicketCancelResponse;
+import com.booking.bookingService.dto.ticket.TicketDetailResponse;
+import com.booking.bookingService.dto.ticket.TicketHistoryResponse;
+import com.booking.bookingService.dto.ticket.TicketLookupResponse;
+import com.booking.bookingService.dto.ticket.TicketRequest;
+import com.booking.bookingService.dto.ticket.TicketResponse;
 import com.booking.bookingService.exception.ResourceNotFoundException;
 import com.booking.bookingService.model.*;
 import com.booking.bookingService.repository.*;

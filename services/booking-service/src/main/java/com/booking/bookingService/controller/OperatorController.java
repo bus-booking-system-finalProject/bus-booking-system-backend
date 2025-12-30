@@ -1,8 +1,8 @@
 package com.booking.bookingService.controller;
 
-import com.booking.bookingService.dto.OperatorRequest;
 import com.booking.bookingService.service.OperatorService;
 import com.booking.bookingService.dto.ApiResponse;
+import com.booking.bookingService.dto.operator.OperatorRequest;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

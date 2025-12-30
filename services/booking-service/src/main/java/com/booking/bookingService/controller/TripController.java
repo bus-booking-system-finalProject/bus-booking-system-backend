@@ -1,9 +1,9 @@
 package com.booking.bookingService.controller;
 
-import com.booking.bookingService.dto.SeatMapResponse;
-import com.booking.bookingService.dto.TripRequest;
-import com.booking.bookingService.dto.TripSearchResponse;
-import com.booking.bookingService.dto.TripSearchRequest;
+import com.booking.bookingService.dto.ticket.SeatMapResponse;
+import com.booking.bookingService.dto.trip.TripRequest;
+import com.booking.bookingService.dto.trip.TripSearchRequest;
+import com.booking.bookingService.dto.trip.TripSearchResponse;
 import com.booking.bookingService.service.TripService;
 import com.booking.bookingService.service.SearchLogService;
 

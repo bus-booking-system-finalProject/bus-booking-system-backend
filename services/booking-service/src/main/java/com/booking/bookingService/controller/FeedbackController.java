@@ -1,7 +1,7 @@
 package com.booking.bookingService.controller;
 
-import com.booking.bookingService.dto.FeedbackRequest;
-import com.booking.bookingService.dto.FeedbackResponse;
+import com.booking.bookingService.dto.feedback.FeedbackRequest;
+import com.booking.bookingService.dto.feedback.FeedbackResponse;
 import com.booking.bookingService.service.FeedbackService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
