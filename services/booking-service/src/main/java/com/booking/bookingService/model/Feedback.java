@@ -1,5 +1,6 @@
 package com.booking.bookingService.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
@@ -7,9 +8,13 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "feedback", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"trip_id", "user_email"}) 
+        @UniqueConstraint(columnNames = { "trip_id", "user_email" })
 })
-@Data @NoArgsConstructor @AllArgsConstructor @Builder
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
 public class Feedback {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -17,6 +22,7 @@ public class Feedback {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "trip_id", nullable = false)
+    @JsonIgnoreProperties({ "stops", "bus", "route", "operator" })
     private Trip trip;
 
     // Requested in requirements

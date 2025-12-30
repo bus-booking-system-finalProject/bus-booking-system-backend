@@ -1,5 +1,6 @@
 package com.booking.bookingService.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 import java.math.BigDecimal;
@@ -8,7 +9,11 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "trip")
-@Data @NoArgsConstructor @AllArgsConstructor @Builder
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
 public class Trip {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -17,14 +22,17 @@ public class Trip {
     // Direct link to Operator allows for easier querying and checking ownership
     @ManyToOne
     @JoinColumn(name = "operator_id")
+    @JsonIgnoreProperties({ "buses", "routes", "trips" })
     private Operator operator;
 
     @ManyToOne
     @JoinColumn(name = "route_id")
+    @JsonIgnoreProperties({ "stops", "trips" })
     private Route route;
 
     @ManyToOne
     @JoinColumn(name = "bus_id")
+    @JsonIgnoreProperties({ "operator", "trips", "seats" })
     private Bus bus;
 
     private LocalDateTime departureTime;
@@ -41,7 +49,9 @@ public class Trip {
     @Enumerated(EnumType.STRING)
     private TripStatus status;
 
-    public enum TripStatus { SCHEDULED, CANCELLED, COMPLETED }
+    public enum TripStatus {
+        SCHEDULED, CANCELLED, COMPLETED
+    }
 
     public LocalDateTime getArrivalTime() {
         if (departureTime != null && route != null) {

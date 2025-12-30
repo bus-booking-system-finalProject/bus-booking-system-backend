@@ -8,14 +8,14 @@ import com.booking.bookingService.model.Feedback;
 import com.booking.bookingService.model.Operator;
 import com.booking.bookingService.model.Trip;
 import com.booking.bookingService.repository.FeedbackRepository;
-import com.booking.bookingService.repository.OperatorRepository; // Needed to update rating
+import com.booking.bookingService.repository.OperatorRepository;
 import com.booking.bookingService.repository.TripRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.stereotype.Service;
 import org.springframework.data.domain.Sort;
+import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -29,7 +29,7 @@ public class FeedbackService {
 
     private final FeedbackRepository feedbackRepository;
     private final TripRepository tripRepository;
-    private final OperatorRepository operatorRepository; // Add this dependency
+    private final OperatorRepository operatorRepository;
 
     @Transactional
     public FeedbackResponse createFeedback(FeedbackRequest request, String userEmail) {
@@ -51,13 +51,12 @@ public class FeedbackService {
 
         Feedback saved = feedbackRepository.save(feedback);
 
-        // --- NEW: Update Operator Rating Automatically ---
-        updateOperatorRating(trip.getOperator().getId());
+        // --- CHANGED: Update BOTH Rating and Count ---
+        updateOperatorStats(trip.getOperator().getId());
 
         return mapToResponse(saved);
     }
 
-    // --- NEW FEATURE: Get Reviews for Operator ---
     @Transactional(readOnly = true)
     public OperatorReviewsResponse getReviewsForOperator(UUID operatorId, int page, int limit) {
         // 1. Validate Operator
@@ -66,45 +65,56 @@ public class FeedbackService {
         }
 
         // 2. Handle Pagination Logic (1-based -> 0-based)
-        int dbPage = (page < 1) ? 0 : page - 1; // Convert 1 -> 0
+        int dbPage = (page < 1) ? 0 : page - 1; 
         Pageable pageable = PageRequest.of(dbPage, limit, Sort.by("submittedAt").descending());
 
         // 3. Fetch Data
         Page<Feedback> feedbackPage = feedbackRepository.findByOperatorId(operatorId, pageable);
         Double avgRating = feedbackRepository.getAverageRatingForOperator(operatorId);
+        
+        // Use the Page's total elements for consistency
+        long totalElements = feedbackPage.getTotalElements();
 
         // 4. Map Reviews
         List<FeedbackResponse> reviewList = feedbackPage.getContent().stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
 
-        // 5. Build Response with Pagination Metadata
+        // 5. Build Response
         return OperatorReviewsResponse.builder()
                 .averageRating(avgRating != null ? Math.round(avgRating * 10.0) / 10.0 : 0.0)
-                .totalReviews(feedbackPage.getTotalElements()) // Use Page total for consistency
+                .totalReviews(totalElements)
                 .reviews(reviewList)
                 .pagination(OperatorReviewsResponse.Pagination.builder()
-                        .total(feedbackPage.getTotalElements())
+                        .total(totalElements)
                         .limit(limit)
                         .totalPages(feedbackPage.getTotalPages())
-                        .page(dbPage + 1) // Convert back to 1-based for response
+                        .page(dbPage + 1)
                         .build())
                 .build();
     }
 
-    // Helper method to recalculate and save Operator rating
-    private void updateOperatorRating(UUID operatorId) {
+    // --- CORRECTION HERE ---
+    // Renamed to updateOperatorStats and added setTotalReviews logic
+    private void updateOperatorStats(UUID operatorId) {
         Double newAverage = feedbackRepository.getAverageRatingForOperator(operatorId);
+        Long totalCount = feedbackRepository.countByOperatorId(operatorId); // Count reviews
+
+        Operator operator = operatorRepository.findById(operatorId)
+                .orElseThrow(() -> new ResourceNotFoundException("Operator not found"));
+        
+        // Update Rating
         if (newAverage != null) {
-            Operator operator = operatorRepository.findById(operatorId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Operator not found"));
-            
-            // Round to 1 decimal place (e.g., 4.5)
             double roundedRating = Math.round(newAverage * 10.0) / 10.0;
-            
             operator.setRating(roundedRating);
-            operatorRepository.save(operator);
+        } else {
+            operator.setRating(0.0);
         }
+
+        // Update Total Reviews (Missing in your code)
+        operator.setTotalReviews(totalCount != null ? totalCount.intValue() : 0);
+
+        operatorRepository.save(operator);
     }
 
     private FeedbackResponse mapToResponse(Feedback feedback) {
@@ -116,5 +126,13 @@ public class FeedbackService {
                 .userEmail(feedback.getUserEmail())
                 .submittedAt(feedback.getSubmittedAt())
                 .build();
+    }
+
+    // --- NEW FEATURE: Get My Review ---
+    @Transactional(readOnly = true)
+    public FeedbackResponse getMyFeedbackForTrip(UUID tripId, String userEmail) {
+        return feedbackRepository.findByTripIdAndUserEmail(tripId, userEmail)
+                .map(this::mapToResponse)
+                .orElse(null); // Return null if not found (Controller will handle this)
     }
 }

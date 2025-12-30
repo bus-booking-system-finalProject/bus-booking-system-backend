@@ -11,6 +11,7 @@ import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.repository.query.Param;
+import java.util.Optional;
 
 @Repository
 public interface FeedbackRepository extends JpaRepository<Feedback, UUID> {
@@ -33,4 +34,6 @@ public interface FeedbackRepository extends JpaRepository<Feedback, UUID> {
     // 3. Count Total Reviews for an Operator
     @Query("SELECT COUNT(f) FROM Feedback f WHERE f.trip.operator.id = :operatorId")
     Long countByOperatorId(@Param("operatorId") UUID operatorId);   
+
+    Optional<Feedback> findByTripIdAndUserEmail(UUID tripId, String userEmail);
 }
