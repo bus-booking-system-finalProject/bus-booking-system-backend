@@ -1,8 +1,10 @@
 spring:
   application:
     name: user-service
+
   config:
     import: optional:configserver:http://config-server:8888
+
   cloud:
     config:
       label: main
@@ -13,6 +15,22 @@ spring:
         max-attempts: 2
         multiplier: 1.5
         max-interval: 10000
+
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: vhoangtestmail@gmail.com
+    password: ${EMAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+          connectiontimeout: 5000
+          timeout: 3000
+          writetimeout: 5000
+
 
 springdoc:
   api-docs:

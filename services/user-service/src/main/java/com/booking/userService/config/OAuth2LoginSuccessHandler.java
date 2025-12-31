@@ -32,13 +32,19 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
         OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
         String email = oAuth2User.getAttribute("email");
 
+        String name = oAuth2User.getAttribute("name");
+        String picture = oAuth2User.getAttribute("picture"); // Google specific
+
         // 1. Find or Create User
         User user = userRepository.findByEmail(email)
                 .orElseGet(() -> {
                     User newUser = User.builder()
                             .email(email)
-                            .password(UUID.randomUUID().toString()) // Dummy password for OAuth users
+                            .password(UUID.randomUUID().toString()) // Dummy password
                             .role(Role.USER)
+                            .fullName(name)      // Auto-fill name
+                            .avatarUrl(picture)  // Auto-fill avatar
+                            .enabled(true)       // <--- NEW: Always enable OAuth users
                             .build();
                     return userRepository.save(newUser);
                 });

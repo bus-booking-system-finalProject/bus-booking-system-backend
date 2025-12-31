@@ -1,10 +1,6 @@
 package com.booking.userService.controller;
 
-import com.booking.userService.dto.LoginRequest;
-import com.booking.userService.dto.RegisterRequest;
-import com.booking.userService.dto.UserProfileResponse;
-import com.booking.userService.dto.LoginResponse;
-import com.booking.userService.dto.UserResponse; 
+import com.booking.userService.dto.*;
 import com.booking.userService.service.JwtService;
 import com.booking.userService.service.UserService;
 import com.booking.userService.model.User;
@@ -36,8 +32,7 @@ public class UserController {
     @Value("${app.cookie.secure}")
     private boolean cookieSecure;
 
-    // --- Refresh token validity (7 days) ---
-    private final long REFRESH_TOKEN_VALIDITY_SECONDS = 604800;
+    private final long REFRESH_TOKEN_VALIDITY_SECONDS = 604800; // 7 days
 
     @Autowired
     public UserController(UserService userService, AuthenticationManager authenticationManager, JwtService jwtService) {
@@ -46,21 +41,32 @@ public class UserController {
         this.jwtService = jwtService;
     }
 
+    // --- HELPER: Maps User entity to UserResponse DTO ---
+    private UserResponse mapToUserResponse(User user) {
+        return new UserResponse(
+                user.getId(),
+                user.getEmail(),
+                user.getRole(),
+                user.getCreatedAt(),
+                user.getFullName(),    // Auto-mapped if exists
+                user.getPhoneNumber(), // Auto-mapped if exists
+                user.getAvatarUrl(),    // Auto-mapped if exists
+                user.isEnabled()
+        );
+    }
+
+    // ==================================================================
+    // 1. PUBLIC AUTH ENDPOINTS
+    // ==================================================================
+
     @PostMapping("/register")
     public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest request) {
         User newUser = userService.registerUser(request); 
-        
-        // Reuse your UserResponse DTO for consistency
-        UserResponse userProfileResp = new UserResponse(
-                newUser.getId(),
-                newUser.getEmail(),
-                newUser.getRole(),
-                newUser.getCreatedAt()
-        );
+        UserResponse userProfileResp = mapToUserResponse(newUser);
         
         Map<String, Object> response = new HashMap<>();
         response.put("success", true);
-        response.put("data", new UserProfileResponse(userProfileResp)); // Return the full user profile
+        response.put("data", new UserProfileResponse(userProfileResp));
         response.put("message", "User registered successfully");
         
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
@@ -72,29 +78,17 @@ public class UserController {
             HttpServletResponse servletResponse 
     ) {
         authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        request.getEmail(),
-                        request.getPassword()
-                )
+                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
         );
 
         var user = (User) userService.loadUserByUsername(request.getEmail());
         String accessToken = jwtService.generateAccessToken(user);
         String refreshToken = jwtService.generateRefreshToken(user);
 
-        // Save refresh token to DB
         userService.saveUserRefreshToken(user, refreshToken);
-
-        // --- Set cookies ---
         setSecureHttpOnlyCookie(servletResponse, "refreshToken", refreshToken, REFRESH_TOKEN_VALIDITY_SECONDS);
 
-        // Return user profile
-        UserResponse userResp = new UserResponse(
-                user.getId(),
-                user.getEmail(),
-                user.getRole(),
-                user.getCreatedAt()
-        );
+        UserResponse userResp = mapToUserResponse(user);
 
         Map<String, Object> response = new HashMap<>();
         response.put("success", true);
@@ -118,12 +112,7 @@ public class UserController {
                     userService.saveUserRefreshToken(user, newRefreshToken);
                     setSecureHttpOnlyCookie(servletResponse, "refreshToken", newRefreshToken, REFRESH_TOKEN_VALIDITY_SECONDS);
 
-                    UserResponse userResp = new UserResponse(
-                            user.getId(),
-                            user.getEmail(),
-                            user.getRole(),
-                            user.getCreatedAt()
-                    );
+                    UserResponse userResp = mapToUserResponse(user);
 
                     Map<String, Object> response = new HashMap<>();
                     response.put("success", true);
@@ -149,7 +138,6 @@ public class UserController {
         if (refreshToken != null && !refreshToken.isEmpty()) {
             userService.deleteRefreshToken(refreshToken);
         }
-
         clearCookie(response, "refreshToken");
         
         Map<String, Object> body = new HashMap<>();
@@ -159,19 +147,15 @@ public class UserController {
 
         return ResponseEntity.ok(body);
     }
-    
-    @GetMapping("/me")
-    public ResponseEntity<?> getMyProfile(
-            @AuthenticationPrincipal UserDetails currentUserDetails 
-    ) {
-        User user = (User) userService.loadUserByUsername(currentUserDetails.getUsername());
 
-        UserResponse userProfileResponse = new UserResponse(
-                user.getId(),
-                user.getEmail(),
-                user.getRole(),
-                user.getCreatedAt()
-        );
+    // ==================================================================
+    // 2. AUTHENTICATED USER ENDPOINTS
+    // ==================================================================
+
+    @GetMapping("/me")
+    public ResponseEntity<?> getMyProfile(@AuthenticationPrincipal UserDetails currentUserDetails) {
+        User user = (User) userService.loadUserByUsername(currentUserDetails.getUsername());
+        UserResponse userProfileResponse = mapToUserResponse(user);
         
         Map<String, Object> response = new HashMap<>();
         response.put("success", true);
@@ -181,29 +165,96 @@ public class UserController {
         return ResponseEntity.ok(response);
     }
 
-    // --- Helper methods ---
+    // --- NEW: Update Profile (Phase 1) ---
+    @PutMapping("/profile")
+    public ResponseEntity<?> updateProfile(
+            @AuthenticationPrincipal UserDetails currentUser,
+            @RequestBody UpdateProfileRequest request
+    ) {
+        // currentUser.getUsername() is the email
+        User updatedUser = userService.updateUserProfile(currentUser.getUsername(), request);
+        UserResponse responseDto = mapToUserResponse(updatedUser);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("data", new UserProfileResponse(responseDto));
+        response.put("message", "Profile updated successfully");
+
+        return ResponseEntity.ok(response);
+    }
+
+    // --- NEW: Change Password (Phase 1) ---
+    @PutMapping("/password")
+    public ResponseEntity<?> changePassword(
+            @AuthenticationPrincipal UserDetails currentUser,
+            @Valid @RequestBody ChangePasswordRequest request
+    ) {
+        userService.changePassword(currentUser.getUsername(), request);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("data", null);
+        response.put("message", "Password changed successfully");
+
+        return ResponseEntity.ok(response);
+    }
+
+    // ==================================================================
+    // 3. COOKIE HELPERS
+    // ==================================================================
 
     private void clearCookie(HttpServletResponse response, String name) {
         ResponseCookie cookie = ResponseCookie.from(name, "")
-                .httpOnly(true)
-                .secure(cookieSecure)
-                .path("/")
-                .maxAge(0) 
-                .sameSite("Lax")
-                .build();
-
+            .httpOnly(true)
+            .secure(cookieSecure)
+            .path("/")
+            .maxAge(0)
+            .sameSite("Lax")
+            .build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }
 
     private void setSecureHttpOnlyCookie(HttpServletResponse response, String name, String value, long maxAgeInSeconds) {
         ResponseCookie cookie = ResponseCookie.from(name, value)
-                .httpOnly(true)
-                .secure(cookieSecure)
-                .path("/")
-                .maxAge(maxAgeInSeconds)
-                .sameSite("Lax")
-                .build();
-
+            .httpOnly(true)
+            .secure(cookieSecure)
+            .path("/")
+            .maxAge(maxAgeInSeconds)
+            .sameSite("Lax")
+            .build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+    }
+
+    // 1. VERIFY EMAIL (Public)
+    @GetMapping("/verify-email")
+    public ResponseEntity<?> verifyEmail(@RequestParam("token") String token) {
+        userService.verifyEmail(token);
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("message", "Email verified successfully. You can now login.");
+        return ResponseEntity.ok(response);
+    }
+
+    // 2. FORGOT PASSWORD (Public)
+    @PostMapping("/forgot-password")
+    public ResponseEntity<?> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        userService.forgotPassword(request.getEmail());
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("message", "If your email exists, a reset link has been sent.");
+        return ResponseEntity.ok(response);
+    }
+
+    // 3. RESET PASSWORD (Public)
+    @PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        userService.resetPassword(request.getToken(), request.getNewPassword());
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("message", "Password has been reset successfully.");
+        return ResponseEntity.ok(response);
     }
 }

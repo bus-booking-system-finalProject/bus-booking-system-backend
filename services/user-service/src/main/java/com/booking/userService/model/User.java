@@ -15,38 +15,51 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 
-@Data // Lombok: Adds getters, setters, toString(), etc.
-@Builder // Lombok: Provides a builder pattern
-@NoArgsConstructor // Lombok: Required for JPA
-@AllArgsConstructor // Lombok: For the builder
-@Entity // Tells JPA this is a table
-@Table(name = "users") // Specifies the table name
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@Entity
+@Table(name = "users")
 @JsonIgnoreProperties({ "hibernateLazyInitializer", "handler", "password", "authorities", "accountNonExpired",
         "accountNonLocked", "credentialsNonExpired", "enabled" })
 public class User implements UserDetails {
 
-    @Id // Marks this as the Primary Key
-    @GeneratedValue(strategy = GenerationType.IDENTITY) // Auto-incrementing ID
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true) // Required and must be unique
+    @Column(nullable = false, unique = true)
     private String email;
 
-    @Column(nullable = false) // Required
+    @Column(nullable = false)
     private String password;
 
-    @CreationTimestamp // Automatically sets the value on creation
+    @CreationTimestamp
     @Column(updatable = false, nullable = false)
     private Date createdAt;
 
-    // --- Role field ---
-    @Enumerated(EnumType.STRING) // Stores the enum as a string ("USER", "ADMIN")
+    // --- NEW FIELDS FOR PHASE 1 ---
+    @Column(length = 100)
+    private String fullName;
+
+    @Column(length = 20)
+    private String phoneNumber;
+
+    @Column(length = 512)
+    private String avatarUrl;
+    // ------------------------------
+
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Role role;
 
-    // --- Refresh Token field ---
-    @Column(length = 512) // Make it long enough for a JWT
+    @Column(length = 512)
     private String refreshToken;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean enabled = true;
 
     // --- UserDetails Methods ---
     @Override
@@ -56,27 +69,20 @@ public class User implements UserDetails {
 
     @Override
     public String getUsername() {
-        // Our "username" is the email
         return this.email;
     }
 
     @Override
-    public boolean isAccountNonExpired() {
-        return true;
-    }
+    public boolean isAccountNonExpired() { return true; }
 
     @Override
-    public boolean isAccountNonLocked() {
-        return true;
-    }
+    public boolean isAccountNonLocked() { return true; }
 
     @Override
-    public boolean isCredentialsNonExpired() {
-        return true;
-    }
+    public boolean isCredentialsNonExpired() { return true; }
 
     @Override
     public boolean isEnabled() {
-        return true;
+        return this.enabled; // Return the actual DB value
     }
 }
