@@ -69,7 +69,7 @@ public class UserService {
         
         // Send Email (Async)
         // NOTE: In production, change localhost to your Frontend URL
-        String verifyUrl = "http://localhost:5173/user/verify-email?token=" + token.getToken();
+        String verifyUrl = "http://localhost:5173/bus-booking-system-frontend/verify-email?token=" + token.getToken();
         emailService.sendEmail(savedUser.getEmail(), "Account Verification", "Click here to verify: " + verifyUrl);
 
         return savedUser;
@@ -101,8 +101,7 @@ public class UserService {
 
         VerificationToken token = new VerificationToken(user);
         tokenRepository.save(token);
-
-        String resetUrl = "http://localhost:5173/user/reset-password?token=" + token.getToken();
+        String resetUrl = "http://localhost:5173/bus-booking-system-frontend/reset-password?token=" + token.getToken();
         emailService.sendEmail(email, "Reset Password", "Click here to reset: " + resetUrl);
     }
 
