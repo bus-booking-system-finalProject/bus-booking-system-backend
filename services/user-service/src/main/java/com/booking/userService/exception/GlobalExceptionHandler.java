@@ -8,6 +8,8 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.security.authentication.DisabledException;
+import com.booking.userService.exception.InvalidTokenException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -60,6 +62,20 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleGlobalException(Exception ex) {
         // Log the error here in production
+        ex.printStackTrace();
+
         return buildErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred", null);
+    }
+    
+    // Handle disabled users
+    @ExceptionHandler(DisabledException.class)
+    public ResponseEntity<Map<String, Object>> handleDisabledException(DisabledException ex) {
+        return buildErrorResponse(HttpStatus.FORBIDDEN, "Account is disabled. Please contact support.", null);
+    }
+
+    // Handle Invalid Token (Returns 400 Bad Request)
+    @ExceptionHandler(InvalidTokenException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidTokenException(InvalidTokenException ex) {
+        return buildErrorResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), null);
     }
 }

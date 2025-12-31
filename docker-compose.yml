@@ -117,6 +117,7 @@ services:
       # REMOVED: user-service-db dependency so it doesn't force start the DB
     environment:
       - SPRING_PROFILES_ACTIVE=${ACTIVE_PROFILE}
+      - EMAIL_PASSWORD=${EMAIL_PASSWORD}
     networks:
       - booking-network
 

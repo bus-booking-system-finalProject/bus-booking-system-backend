@@ -22,6 +22,9 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-jpa") // For JPA (Entities, Repositories)
     implementation("org.springframework.boot:spring-boot-starter-validation") // For @Valid validation on DTOs
     implementation("org.springframework.boot:spring-boot-starter-security") // For Password Hashing (BCrypt)
+
+    implementation("org.springframework.boot:spring-boot-starter-mail")
+    
     implementation("org.springframework.cloud:spring-cloud-starter-netflix-eureka-client")
     runtimeOnly("org.postgresql:postgresql") // PostgreSQL Driver
     compileOnly("org.projectlombok:lombok") // (Optional) Lombok for less boilerplate code (getters/setters)

@@ -50,6 +50,7 @@ public class SecurityConfig {
                 .requestMatchers(
                     "/register", "/login", "/refresh", "/logout",
                     "/login/oauth2/**", "/oauth2/**",
+                    "/verify-email", "/forgot-password", "/reset-password",
                     "/v3/api-docs/**", "/v3/api-docs", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                 // Only users with the "ADMIN" authority can access /admin/**
                 .requestMatchers("/admin/**").hasAuthority("ADMIN")
