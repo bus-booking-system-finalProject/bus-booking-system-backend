@@ -9,7 +9,6 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.security.authentication.DisabledException;
-import com.booking.userService.exception.InvalidTokenException;
 
 import java.util.HashMap;
 import java.util.Map;

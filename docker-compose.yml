@@ -27,7 +27,6 @@ services:
   booking-service-db:
     image: postgres:17-alpine
     container_name: booking-service_db
-    # Added profile
     profiles: ["infra"]
     ports:
       - "5433:5432"
@@ -48,7 +47,7 @@ services:
   # --- 1. Configuration Server ---
   config-server:
     hostname: config-server
-    # 'build' tells docker-compose to build this image
+    profiles: ["core"]
     build:
       context: ./config-server
       dockerfile: Dockerfile.dev
@@ -58,11 +57,6 @@ services:
     image: com.booking/config-server:0.0.1-SNAPSHOT
     ports:
       - "8888:8888"
-    healthcheck:
-      test: ["CMD-SHELL", "bash -c '</dev/tcp/localhost/8888'"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
     environment:
       - SPRING_PROFILES_ACTIVE=${ACTIVE_PROFILE}
       # This reads the PAT from your .env file
@@ -72,6 +66,7 @@ services:
 
   service-registry:
     hostname: service-registry
+    profiles: ["core"]
     build:
       context: ./service-registry
       dockerfile: Dockerfile.dev
@@ -80,14 +75,6 @@ services:
     image: com.booking/service-registry:0.0.1-SNAPSHOT
     ports:
       - "8081:8081"
-    healthcheck:
-      test: ["CMD-SHELL", "bash -c '</dev/tcp/localhost/8081'"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-    depends_on:
-      config-server:
-        condition: service_healthy
     environment:
       - SPRING_PROFILES_ACTIVE=${ACTIVE_PROFILE}
     networks:
@@ -109,12 +96,6 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
-    depends_on:
-      config-server:
-        condition: service_healthy
-      service-registry:
-        condition: service_healthy
-      # REMOVED: user-service-db dependency so it doesn't force start the DB
     environment:
       - SPRING_PROFILES_ACTIVE=${ACTIVE_PROFILE}
       - EMAIL_PASSWORD=${EMAIL_PASSWORD}
@@ -136,12 +117,6 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
-    depends_on:
-      config-server:
-        condition: service_healthy
-      service-registry:
-        condition: service_healthy
-      # REMOVED: redis and booking-service-db dependencies
     environment:
       - SPRING_DATA_REDIS_HOST=redis 
       - SPRING_DATA_REDIS_PORT=6379
@@ -167,6 +142,7 @@ services:
   # --- 4. API Gateway ---
   api-gateway:
     hostname: api-gateway
+    profiles: ["core"]
     build:
       context: ./api-gateway
       dockerfile: Dockerfile.dev
@@ -180,11 +156,6 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
-    depends_on:
-      config-server:
-        condition: service_healthy
-      service-registry:
-        condition: service_healthy
     environment:
       - LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_CLOUD_GATEWAY=DEBUG
       - LOGGING_LEVEL_REACTOR_NETTY_HTTP_CLIENT=DEBUG

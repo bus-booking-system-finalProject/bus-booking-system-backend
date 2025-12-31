@@ -33,18 +33,18 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
         String email = oAuth2User.getAttribute("email");
 
         String name = oAuth2User.getAttribute("name");
-        String picture = oAuth2User.getAttribute("picture"); // Google specific
+        String picture = oAuth2User.getAttribute("picture");
 
         // 1. Find or Create User
         User user = userRepository.findByEmail(email)
                 .orElseGet(() -> {
                     User newUser = User.builder()
                             .email(email)
-                            .password(UUID.randomUUID().toString()) // Dummy password
+                            .password(UUID.randomUUID().toString())
                             .role(Role.USER)
-                            .fullName(name)      // Auto-fill name
-                            .avatarUrl(picture)  // Auto-fill avatar
-                            .enabled(true)       // <--- NEW: Always enable OAuth users
+                            .fullName(name)
+                            .avatarUrl(picture)
+                            .enabled(true)
                             .build();
                     return userRepository.save(newUser);
                 });
@@ -59,7 +59,7 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
 
         // 4. Create Redirect URL with Tokens (or set cookies here)
         // We will send tokens via query params to a specific frontend route which will save them
-        String targetUrl = UriComponentsBuilder.fromUriString(frontendUrl + "/bus-booking-system-frontend/oauth2/callback")
+        String targetUrl = UriComponentsBuilder.fromUriString(frontendUrl + "/oauth2/callback")
                 .queryParam("accessToken", accessToken)
                 .queryParam("refreshToken", refreshToken)
                 .build().toUriString();
