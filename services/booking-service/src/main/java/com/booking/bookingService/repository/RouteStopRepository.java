@@ -9,5 +9,5 @@ import java.util.UUID;
 @Repository
 public interface RouteStopRepository extends JpaRepository<RouteStop, UUID> {
     // Fetch stops ordered by sequence for correct timeline generation
-    List<RouteStop> findByRouteIdOrderByOrderIndexAsc(UUID routeId);
+    List<RouteStop> findByRouteId(UUID routeId);
 }

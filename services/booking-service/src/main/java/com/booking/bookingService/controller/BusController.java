@@ -1,8 +1,9 @@
 package com.booking.bookingService.controller;
 
-import com.booking.bookingService.dto.BusRequest;
-import com.booking.bookingService.dto.BusResponse;
-import com.booking.bookingService.dto.SeatDefinition;
+import com.booking.bookingService.dto.ApiResponse;
+import com.booking.bookingService.dto.bus.BusRequest;
+import com.booking.bookingService.dto.bus.BusResponse;
+import com.booking.bookingService.dto.ticket.SeatDefinition;
 import com.booking.bookingService.model.Bus;
 import com.booking.bookingService.service.BusService;
 import jakarta.validation.Valid;
@@ -10,9 +11,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.HashMap;
-import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.List;
@@ -25,11 +23,11 @@ public class BusController {
 
     @PostMapping
     public ResponseEntity<?> createBus(@Valid @RequestBody BusRequest request) {
-        Map<String, Object> response = new HashMap<>();
-        response.put("success", true);
-        response.put("data", busService.createBus(request));
-        response.put("message", "Bus created successfully");
-        return new ResponseEntity<>(response, HttpStatus.CREATED);
+        Bus createdBus = busService.createBus(request);
+        return new ResponseEntity<>(
+            ApiResponse.success(createdBus, "Bus created successfully"), 
+            HttpStatus.CREATED
+        );
     }
 
     @GetMapping
@@ -48,39 +46,25 @@ public class BusController {
                 .build()
         ).collect(Collectors.toList());
 
-        Map<String, Object> response = new HashMap<>();
-        response.put("success", true);
-        response.put("data", busResponses);
-        response.put("message", "Buses retrieved successfully");
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success(busResponses, "Buses retrieved successfully"));
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<?> getBus(@PathVariable UUID id) {
-        Map<String, Object> response = new HashMap<>();
-        response.put("success", true);
-        response.put("data", busService.getBus(id));
-        response.put("message", "Bus retrieved successfully");
-        return ResponseEntity.ok(response);
+        Bus bus = busService.getBus(id);
+        return ResponseEntity.ok(ApiResponse.success(bus, "Bus retrieved successfully"));
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<?> updateBus(@PathVariable UUID id, @Valid @RequestBody BusRequest request) {
-        Map<String, Object> response = new HashMap<>();
-        response.put("success", true);
-        response.put("data", busService.updateBus(id, request));
-        response.put("message", "Bus updated successfully");
-        return ResponseEntity.ok(response);
+        Bus updatedBus = busService.updateBus(id, request);
+        return ResponseEntity.ok(ApiResponse.success(updatedBus, "Bus updated successfully"));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteBus(@PathVariable UUID id) {
         busService.deleteBus(id);
-        Map<String, Object> response = new HashMap<>();
-        response.put("success", true);
-        response.put("data", null);
-        response.put("message", "Bus deleted successfully");
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success(null, "Bus deleted successfully"));
     }
 
     @PostMapping("/{id}/seats/custom")
@@ -88,10 +72,7 @@ public class BusController {
             @PathVariable UUID id, 
             @RequestBody List<SeatDefinition> seatDefinitions
     ) {
-        Map<String, Object> response = new HashMap<>();
-        response.put("success", true);
-        response.put("data", busService.saveCustomSeatMap(id, seatDefinitions));
-        response.put("message", "Custom seat map saved successfully");
-        return ResponseEntity.ok(response);
+        Object result = busService.saveCustomSeatMap(id, seatDefinitions);
+        return ResponseEntity.ok(ApiResponse.success(result, "Custom seat map saved successfully"));
     }
 }

@@ -1,4 +1,4 @@
-package com.booking.bookingService.dto;
+package com.booking.bookingService.dto.ticket;
 
 import lombok.Data;
 import java.util.List;

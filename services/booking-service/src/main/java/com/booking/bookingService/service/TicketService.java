@@ -1,6 +1,14 @@
 package com.booking.bookingService.service;
 
-import com.booking.bookingService.dto.*;
+import com.booking.bookingService.dto.ticket.CancelTicketRequest;
+import com.booking.bookingService.dto.ticket.GuestLookupRequest;
+import com.booking.bookingService.dto.ticket.SeatLockRequest;
+import com.booking.bookingService.dto.ticket.TicketCancelResponse;
+import com.booking.bookingService.dto.ticket.TicketDetailResponse;
+import com.booking.bookingService.dto.ticket.TicketHistoryResponse;
+import com.booking.bookingService.dto.ticket.TicketLookupResponse;
+import com.booking.bookingService.dto.ticket.TicketRequest;
+import com.booking.bookingService.dto.ticket.TicketResponse;
 import com.booking.bookingService.exception.ResourceNotFoundException;
 import com.booking.bookingService.model.*;
 import com.booking.bookingService.repository.*;
@@ -31,7 +39,7 @@ public class TicketService {
     private final TripSeatRepository seatStatusRepository;
     private final TripRepository tripRepository;
     private final TicketRepository ticketRepository;
-    private final TripStopRepository tripStopRepository;
+    private final RouteStopRepository routeStopRepository;
     // private final SeatRepository seatRepository;
 
     private static final long LOCK_TIMEOUT_SECONDS = 600;
@@ -118,14 +126,15 @@ public class TicketService {
         validateLockOwnership(trip.getId(), request.getSeats(), lockOwnerId);
 
         // Fetch Selected Stops
-        TripStop pickupStop = tripStopRepository.findById(request.getPickupId())
+        RouteStop pickupStop = routeStopRepository.findById(request.getPickupId())
                 .orElseThrow(() -> new ResourceNotFoundException("Invalid Pickup ID"));
-        TripStop dropoffStop = tripStopRepository.findById(request.getDropoffId())
+        RouteStop dropoffStop = routeStopRepository.findById(request.getDropoffId())
                 .orElseThrow(() -> new ResourceNotFoundException("Invalid Dropoff ID"));
 
         // Validate stops belong to this trip
-        if (!pickupStop.getTrip().getId().equals(trip.getId()) || !dropoffStop.getTrip().getId().equals(trip.getId())) {
-             throw new IllegalArgumentException("Selected stops do not belong to this trip");
+        if (!pickupStop.getRoute().getId().equals(trip.getRoute().getId()) || 
+            !dropoffStop.getRoute().getId().equals(trip.getRoute().getId())) {
+                throw new IllegalArgumentException("Selected stops do not belong to this trip's route");
         }
 
         int updatedRows = tripRepository.decrementAvailableSeats(trip.getId(), request.getSeats().size());
@@ -153,8 +162,8 @@ public class TicketService {
                 // Gia hạn lock thêm 10 phút để thanh toán
                 .lockedUntil(LocalDateTime.now().plusSeconds(LOCK_TIMEOUT_SECONDS))
                 .seats(request.getSeats())
-                .pickupTripStop(pickupStop)
-                .dropoffTripStop(dropoffStop)
+                .pickupRouteStop(pickupStop)
+                .dropoffRouteStop(dropoffStop)
                 .build();
 
         ticketRepository.save(ticket);
@@ -432,6 +441,21 @@ public class TicketService {
                         .operator(ticket.getTrip().getOperator().getName())
                         .departureTime(ticket.getTrip().getDepartureTime())
                         .arrivalTime(ticket.getTrip().getArrivalTime())
+                        .duration(ticket.getTrip().getRoute().getEstimatedMinutes())
+                        .from(TicketDetailResponse.StopDto.builder()
+                            .stopId(ticket.getPickupRouteStop().getId())
+                            .name(ticket.getPickupRouteStop().getStation().getName())
+                            .address(ticket.getPickupRouteStop().getFullAddress())
+                            .time(ticket.getPickupTime())
+                            .build()
+                        )
+                        .to(TicketDetailResponse.StopDto.builder()
+                            .stopId(ticket.getDropoffRouteStop().getId())
+                            .name(ticket.getDropoffRouteStop().getStation().getName())
+                            .address(ticket.getDropoffRouteStop().getFullAddress())
+                            .time(ticket.getDropoffTime())
+                            .build()
+                        )
                         .build())
                 .pricing(TicketDetailResponse.PricingDto.builder()
                         .total(ticket.getTotalAmount())

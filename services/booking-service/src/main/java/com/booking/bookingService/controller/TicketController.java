@@ -1,10 +1,11 @@
 package com.booking.bookingService.controller;
 
-import com.booking.bookingService.dto.SeatLockRequest; // Import DTO mới
-import com.booking.bookingService.dto.TicketLookupResponse;
-import com.booking.bookingService.dto.TicketRequest;
-import com.booking.bookingService.dto.CancelTicketRequest;
-import com.booking.bookingService.dto.GuestLookupRequest;
+import com.booking.bookingService.dto.ApiResponse;
+import com.booking.bookingService.dto.ticket.CancelTicketRequest;
+import com.booking.bookingService.dto.ticket.GuestLookupRequest;
+import com.booking.bookingService.dto.ticket.SeatLockRequest;
+import com.booking.bookingService.dto.ticket.TicketLookupResponse;
+import com.booking.bookingService.dto.ticket.TicketRequest;
 import com.booking.bookingService.service.TicketService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -41,10 +42,7 @@ public class TicketController {
         // service sẽ throw Exception (Global Exception Handler sẽ bắt lỗi này)
         ticketService.lockSeats(request);
 
-        return ResponseEntity.ok(Map.of(
-            "success", true,
-            "message", "Seats locked successfully"
-        ));
+        return ResponseEntity.ok(ApiResponse.success(request.getSeats(), "Seats locked successfully"));
     }
 
     // --- API 2: UNLOCK SEATS (Bỏ chọn ghế) ---
@@ -56,10 +54,7 @@ public class TicketController {
         
         ticketService.unlockSeats(request);
 
-        return ResponseEntity.ok(Map.of(
-            "success", true,
-            "message", "Seats unlocked successfully"
-        ));
+        return ResponseEntity.ok(ApiResponse.success(request.getSeats(), "Seats unlocked successfully"));
     }
 
     // --- API 3: CREATE TICKET (Xác nhận đặt vé) ---

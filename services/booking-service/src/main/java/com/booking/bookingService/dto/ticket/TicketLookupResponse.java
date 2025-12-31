@@ -1,4 +1,4 @@
-package com.booking.bookingService.dto;
+package com.booking.bookingService.dto.ticket;
 
 import lombok.Builder;
 import lombok.Data;
@@ -8,21 +8,28 @@ import java.util.List;
 import java.util.UUID;
 
 @Data @Builder
-public class TicketDetailResponse {
+public class TicketLookupResponse {
     private UUID ticketId;
     private String ticketCode;
-    private String userEmail;
-
+    private String status;
+    
     private String contactName;
     private String contactEmail;
     private String contactPhone;
     
-    private String status;
     private List<String> seats;
+    private PricingDto pricing;
+    
+    // Nested Trip Details for UI display
     private TripDetailsDto tripDetails;
-    private PricingDto pricing; // Tái sử dụng PricingDto
+
     private LocalDateTime createdAt;
-    private LocalDateTime confirmedAt;
+
+    @Data @Builder
+    public static class PricingDto {
+        private BigDecimal total;
+        private String currency;
+    }
 
     @Data @Builder
     public static class TripDetailsDto {
@@ -31,11 +38,5 @@ public class TicketDetailResponse {
         private String operator;
         private LocalDateTime departureTime;
         private LocalDateTime arrivalTime;
-    }
-    
-    @Data @Builder
-    public static class PricingDto {
-        private BigDecimal total;
-        private String currency;
     }
 }

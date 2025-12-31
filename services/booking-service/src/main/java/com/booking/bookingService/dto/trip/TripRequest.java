@@ -1,4 +1,4 @@
-package com.booking.bookingService.dto;
+package com.booking.bookingService.dto.trip;
 
 import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.Min;

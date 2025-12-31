@@ -49,6 +49,9 @@ dependencies {
     // Pay os 
     implementation("vn.payos:payos-java:2.0.1")
 
+    // Cloudinary
+    implementation("com.cloudinary:cloudinary-http44:1.39.0")
+
     // Email Support
     implementation("org.springframework.boot:spring-boot-starter-mail")
 

@@ -51,14 +51,12 @@ public class Ticket {
     private List<String> seats;
 
     @ManyToOne
-    @JoinColumn(name = "pickup_trip_stop_id")
-    @JsonIgnoreProperties({ "trip" })
-    private TripStop pickupTripStop;
+    @JoinColumn(name = "pickup_route_stop_id")
+    private RouteStop pickupRouteStop;
 
     @ManyToOne
-    @JoinColumn(name = "dropoff_trip_stop_id")
-    @JsonIgnoreProperties({ "trip" })
-    private TripStop dropoffTripStop;
+    @JoinColumn(name = "dropoff_route_stop_id")
+    private RouteStop dropoffRouteStop;
 
     @OneToOne(mappedBy = "ticket", fetch = FetchType.LAZY)
     @JsonIgnoreProperties({ "ticket" })
@@ -69,18 +67,20 @@ public class Ticket {
     }
 
     public String getFullPickupAddress() {
-        return pickupTripStop.getFullAddress();
+        return pickupRouteStop != null ? pickupRouteStop.getFullAddress() : "";
     }
 
     public String getFullDropoffAddress() {
-        return dropoffTripStop.getFullAddress();
+        return dropoffRouteStop != null ? dropoffRouteStop.getFullAddress() : "";
     }
 
     public LocalDateTime getPickupTime() {
-        return pickupTripStop.getTime();
+        if (trip == null || pickupRouteStop == null) return null;
+        return trip.getDepartureTime().plusMinutes(pickupRouteStop.getDuration());
     }
 
     public LocalDateTime getDropoffTime() {
-        return dropoffTripStop.getTime();
+        if (trip == null || dropoffRouteStop == null) return null;
+        return trip.getDepartureTime().plusMinutes(dropoffRouteStop.getDuration());
     }
 }

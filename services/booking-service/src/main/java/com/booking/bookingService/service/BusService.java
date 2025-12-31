@@ -1,7 +1,7 @@
 package com.booking.bookingService.service;
 
-import com.booking.bookingService.dto.BusRequest;
-import com.booking.bookingService.dto.SeatDefinition;
+import com.booking.bookingService.dto.bus.BusRequest;
+import com.booking.bookingService.dto.ticket.SeatDefinition;
 import com.booking.bookingService.exception.ResourceNotFoundException;
 import com.booking.bookingService.model.Bus;
 import com.booking.bookingService.model.Operator;

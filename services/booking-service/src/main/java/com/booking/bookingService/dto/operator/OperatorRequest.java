@@ -1,4 +1,4 @@
-package com.booking.bookingService.dto;
+package com.booking.bookingService.dto.operator;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -14,4 +14,6 @@ public class OperatorRequest {
 
     @NotBlank(message = "Phone number is required")
     private String contactPhone;
+
+    private String image;
 }

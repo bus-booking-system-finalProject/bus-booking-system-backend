@@ -1,10 +1,10 @@
 {
   "operators": [
-    { "key": "op_futa", "name": "Phương Trang", "email": "hotro@futa.vn", "phone": "19006067", "rating": 4.8 },
-    { "key": "op_tb", "name": "Thành Bưởi", "email": "hotro@thanhbuoi.vn", "phone": "19006079", "rating": 4.5 },
-    { "key": "op_kumho", "name": "Kumho Samco", "email": "lienhe@kumhosamco.com.vn", "phone": "19006065", "rating": 4.7 },
-    { "key": "op_hl", "name": "Hoàng Long", "email": "info@hoanglong.vn", "phone": "02253920920", "rating": 4.4 },
-    { "key": "op_lh", "name": "Liên Hưng", "email": "lh@lienhungbus.vn", "phone": "19002679", "rating": 4.6 }
+    { "key": "op_futa", "name": "Phương Trang", "email": "hotro@futa.vn", "phone": "19006067", "rating": 4.8, "image": "https://res.cloudinary.com/drtpew1th/image/upload/v1767032965/bus_operators/hhohd5pxmtujexzfjqpn.png" },
+    { "key": "op_tb", "name": "Thành Bưởi", "email": "hotro@thanhbuoi.vn", "phone": "19006079", "rating": 4.5, "image": "https://res.cloudinary.com/drtpew1th/image/upload/v1767033334/bus_operators/rkk6n7brzexc8dt802f5.png" },
+    { "key": "op_kumho", "name": "Kumho Samco", "email": "lienhe@kumhosamco.com.vn", "phone": "19006065", "rating": 4.7, "image": "https://res.cloudinary.com/drtpew1th/image/upload/v1767034150/bus_operators/kue1cqtz34m4i9ghigmv.png" },
+    { "key": "op_hl", "name": "Hoàng Long", "email": "info@hoanglong.vn", "phone": "02253920920", "rating": 4.4, "image": "https://res.cloudinary.com/drtpew1th/image/upload/v1767033671/bus_operators/ewil1qgi6iix7ywlmjyy.png" },
+    { "key": "op_lh", "name": "Liên Hưng", "email": "lh@lienhungbus.vn", "phone": "19002679", "rating": 4.6, "image": "https://res.cloudinary.com/drtpew1th/image/upload/v1767034004/bus_operators/srk2gnnptlvsguytcxbu.jpg" }
   ],
   "buses": [
     { "key": "bus_futa_01", "operatorKey": "op_futa", "model": "Hyundai Universe", "plateNumber": "51B-10001", "capacity": 34, "type": "Sleeper" },
@@ -26,42 +26,195 @@
     { "key": "bus_lh_02", "operatorKey": "op_lh", "model": "Kia Granbird", "plateNumber": "79B-50002", "capacity": 34, "type": "Sleeper" }
   ],
   "stations": [
-    { "key": "st_futa_bxmt", "operatorKey": "op_futa", "name": "Bến Xe Miền Tây", "address": "395 Kinh Dương Vương", "ward": "An Lạc", "city": "Ho Chi Minh City" },
-    { "key": "st_futa_bxn", "operatorKey": "op_futa", "name": "Bến Xe Nước Ngầm", "address": "Km8 Đường Giải Phóng", "ward": "Hoàng Liệt", "city": "Hanoi" },
+    { "key": "st_futa_bxmt", "operatorKey": "op_futa", "name": "Bến Xe Miền Tây", "address": "395 Kinh Dương Vương", "ward": "An Lạc", "city": "Hồ Chí Minh" },
+    { "key": "st_futa_bxn", "operatorKey": "op_futa", "name": "Bến Xe Nước Ngầm", "address": "Km8 Đường Giải Phóng", "ward": "Hoàng Liệt", "city": "Hà Nội" },
     
-    { "key": "st_tb_bxmd", "operatorKey": "op_tb", "name": "Bến Xe Miền Đông", "address": "292 Đinh Bộ Lĩnh", "ward": "Phường 26", "city": "Ho Chi Minh City" },
-    { "key": "st_tb_bxg", "operatorKey": "op_tb", "name": "Bến Xe Giáp Bát", "address": "Km6 Đường Giải Phóng", "ward": "Giáp Bát", "city": "Hanoi" },
+    { "key": "st_tb_bxmd", "operatorKey": "op_tb", "name": "Bến Xe Miền Đông", "address": "292 Đinh Bộ Lĩnh", "ward": "Phường 26", "city": "Hồ Chí Minh" },
+    { "key": "st_tb_bxg", "operatorKey": "op_tb", "name": "Bến Xe Giáp Bát", "address": "Km6 Đường Giải Phóng", "ward": "Giáp Bát", "city": "Hà Nội" },
 
-    { "key": "st_kumho_bxmd", "operatorKey": "op_kumho", "name": "BX Miền Đông (Quầy 32)", "address": "292 Đinh Bộ Lĩnh", "ward": "Phường 26", "city": "Ho Chi Minh City" },
-    { "key": "st_kumho_bxmd_hn", "operatorKey": "op_kumho", "name": "Bến Xe Mỹ Đình", "address": "20 Phạm Hùng", "ward": "Mỹ Đình", "city": "Hanoi" },
+    { "key": "st_kumho_bxmd", "operatorKey": "op_kumho", "name": "BX Miền Đông (Quầy 32)", "address": "292 Đinh Bộ Lĩnh", "ward": "Phường 26", "city": "Hồ Chí Minh" },
+    { "key": "st_kumho_bxmd_hn", "operatorKey": "op_kumho", "name": "Bến Xe Mỹ Đình", "address": "20 Phạm Hùng", "ward": "Mỹ Đình", "city": "Hà Nội" },
 
-    { "key": "st_hl_bxmd", "operatorKey": "op_hl", "name": "Văn Phòng Hoàng Long", "address": "44 QL13", "ward": "Hiệp Bình Chánh", "city": "Ho Chi Minh City" },
-    { "key": "st_hl_bxn", "operatorKey": "op_hl", "name": "Bến Xe Nước Ngầm", "address": "Số 1 Ngọc Hồi", "ward": "Hoàng Liệt", "city": "Hanoi" },
+    { "key": "st_hl_bxmd", "operatorKey": "op_hl", "name": "Văn Phòng Hoàng Long", "address": "44 QL13", "ward": "Hiệp Bình Chánh", "city": "Hồ Chí Minh" },
+    { "key": "st_hl_bxn", "operatorKey": "op_hl", "name": "Bến Xe Nước Ngầm", "address": "Số 1 Ngọc Hồi", "ward": "Hoàng Liệt", "city": "Hà Nội" },
 
-    { "key": "st_lh_bxmd", "operatorKey": "op_lh", "name": "BX Miền Đông (Quầy 50)", "address": "292 Đinh Bộ Lĩnh", "ward": "Phường 26", "city": "Ho Chi Minh City" },
-    { "key": "st_lh_bxn", "operatorKey": "op_lh", "name": "Bến Xe Nước Ngầm", "address": "Km8 Đường Giải Phóng", "ward": "Hoàng Liệt", "city": "Hanoi" }
+    { "key": "st_lh_bxmd", "operatorKey": "op_lh", "name": "BX Miền Đông (Quầy 50)", "address": "292 Đinh Bộ Lĩnh", "ward": "Phường 26", "city": "Hồ Chí Minh" },
+    { "key": "st_lh_bxn", "operatorKey": "op_lh", "name": "Bến Xe Nước Ngầm", "address": "Km8 Đường Giải Phóng", "ward": "Hoàng Liệt", "city": "Hà Nội" },
+
+    { "key": "st_futa_dl", "operatorKey": "op_futa", "name": "BX Liên Tỉnh Đà Lạt", "address": "01 Tô Hiến Thành", "ward": "Phường 3", "city": "Đà Lạt" },
+    { "key": "st_futa_nt", "operatorKey": "op_futa", "name": "BX Phía Nam Nha Trang", "address": "58 Đường 23/10", "ward": "Vĩnh Hiệp", "city": "Nha Trang" },
+    { "key": "st_futa_ct", "operatorKey": "op_futa", "name": "BX Hùng Vương", "address": "01 Hùng Vương", "ward": "Thới Bình", "city": "Cần Thơ" },
+    { "key": "st_futa_vt", "operatorKey": "op_futa", "name": "BX Vũng Tàu", "address": "Nam Kỳ Khởi Nghĩa", "ward": "Thắng Tam", "city": "Vũng Tàu" },
+    { "key": "st_futa_pt", "operatorKey": "op_futa", "name": "BX Bắc Phan Thiết", "address": "Từ Văn Tư", "ward": "Phú Trinh", "city": "Phan Thiết" },
+    { "key": "st_futa_rg", "operatorKey": "op_futa", "name": "BX Rạch Giá", "address": "260A Nguyễn Bỉnh Khiêm", "ward": "Vĩnh Quang", "city": "Rạch Giá" },
+    { "key": "st_futa_lx", "operatorKey": "op_futa", "name": "BX Long Xuyên", "address": "392 Phạm Cự Lượng", "ward": "Mỹ Quý", "city": "Long Xuyên" },
+    
+    { "key": "st_tb_dl", "operatorKey": "op_tb", "name": "VP Thành Bưởi Đà Lạt", "address": "49-55 Phan Bội Châu", "ward": "Phường 1", "city": "Đà Lạt" },
+    { "key": "st_tb_bl", "operatorKey": "op_tb", "name": "VP Bảo Lộc", "address": "139 Trần Phú", "ward": "Lộc Sơn", "city": "Bao Loc" },
+    { "key": "st_tb_ct", "operatorKey": "op_tb", "name": "BX 91B Cần Thơ", "address": "Nguyễn Văn Linh", "ward": "Hưng Lợi", "city": "Cần Thơ" },
+
+    { "key": "st_kumho_vt", "operatorKey": "op_kumho", "name": "BX Vũng Tàu (Kumho)", "address": "Nam Kỳ Khởi Nghĩa", "ward": "Thắng Tam", "city": "Vũng Tàu" },
+    { "key": "st_kumho_pt", "operatorKey": "op_kumho", "name": "VP Phan Thiết", "address": "Số 1 Từ Văn Tư", "ward": "Phú Trinh", "city": "Phan Thiết" },
+    { "key": "st_kumho_bmt", "operatorKey": "op_kumho", "name": "BX Phía Bắc Buôn Ma Thuột", "address": "71 Nguyễn Tất Thành", "ward": "Tân An", "city": "Buon Ma Thuot" },
+
+    { "key": "st_hl_dn", "operatorKey": "op_hl", "name": "BX Trung Tâm Đà Nẵng", "address": "185 Tôn Đức Thắng", "ward": "Hòa Minh", "city": "Đà Nẵng" },
+    { "key": "st_hl_Huế", "operatorKey": "op_hl", "name": "BX Phía Nam Huế", "address": "An Dương Vương", "ward": "An Đông", "city": "Huế" },
+    { "key": "st_hl_vinh", "operatorKey": "op_hl", "name": "BX Bắc Vinh", "address": "Nghi Kim", "ward": "Tp Vinh", "city": "Vinh" },
+    { "key": "st_hl_th", "operatorKey": "op_hl", "name": "BigC Thanh Hóa", "address": "Đông Hà", "ward": "Đông Hương", "city": "Thanh Hóa" },
+    { "key": "st_hl_nb", "operatorKey": "op_hl", "name": "Hoa Lư Ninh Bình", "address": "Trần Hưng Đạo", "ward": "Đông Thành", "city": "Ninh Bình" },
+
+    { "key": "st_lh_nt", "operatorKey": "op_lh", "name": "VP Liên Hưng Nha Trang", "address": "77 Thái Nguyên", "ward": "Phước Tân", "city": "Nha Trang" },
+    { "key": "st_lh_dn", "operatorKey": "op_lh", "name": "VP Liên Hưng Đà Nẵng", "address": "Tôn Đức Thắng", "ward": "Hòa Minh", "city": "Đà Nẵng" },
+    { "key": "st_lh_qn", "operatorKey": "op_lh", "name": "BX Quy Nhơn", "address": "71 Tây Sơn", "ward": "Ghềnh Ráng", "city": "Quy Nhơn" },
+    { "key": "st_lh_pr", "operatorKey": "op_lh", "name": "BX Phan Rang", "address": "23 Thống Nhất", "ward": "Đạo Long", "city": "Phan Rang" },
+
+    { "key": "st_gen_suoitien", "operatorKey": "op_futa", "name": "KDL Suối Tiên", "address": "Xa Lộ Hà Nội", "ward": "Tân Phú", "city": "Hồ Chí Minh" },
+    { "key": "st_gen_amata", "operatorKey": "op_futa", "name": "KCN Amata", "address": "QL1A", "ward": "Long Bình", "city": "Đồng Nai" },
+    { "key": "st_gen_daugiay", "operatorKey": "op_futa", "name": "Ngã 3 Dầu Giây", "address": "QL1A", "ward": "Dầu Giây", "city": "Đồng Nai" },
+    { "key": "st_gen_phuly", "operatorKey": "op_futa", "name": "Phủ Lý (Hà Nam)", "address": "QL1A", "ward": "Liêm Chính", "city": "Hà Nam" }
   ],
   "routes": [
-    { "key": "route_futa_hcm_hn", "operatorKey": "op_futa", "origin": "Ho Chi Minh City", "destination": "Hanoi", "distance": 1720, "minutes": 1800 },
-    { "key": "route_tb_hcm_hn", "operatorKey": "op_tb", "origin": "Ho Chi Minh City", "destination": "Hanoi", "distance": 1720, "minutes": 1750 },
-    { "key": "route_kumho_hcm_hn", "operatorKey": "op_kumho", "origin": "Ho Chi Minh City", "destination": "Hanoi", "distance": 1720, "minutes": 1850 },
-    { "key": "route_hl_hcm_hn", "operatorKey": "op_hl", "origin": "Ho Chi Minh City", "destination": "Hanoi", "distance": 1720, "minutes": 1900 },
-    { "key": "route_lh_hcm_hn", "operatorKey": "op_lh", "origin": "Ho Chi Minh City", "destination": "Hanoi", "distance": 1720, "minutes": 1820 }
+    { "key": "route_futa_hcm_hn", "operatorKey": "op_futa", "name": "Sài Gòn (BXMT) - Hà Nội (Futa)", "origin": "Hồ Chí Minh", "destination": "Hà Nội", "distance": 1720, "minutes": 1800 },
+    { "key": "route_tb_hcm_hn", "operatorKey": "op_tb", "name": "Sài Gòn (BXMĐ) - Hà Nội (Thành Bưởi)", "origin": "Hồ Chí Minh", "destination": "Hà Nội", "distance": 1720, "minutes": 1750 },
+    { "key": "route_kumho_hcm_hn", "operatorKey": "op_kumho", "name": "Sài Gòn (BXMĐ) - Hà Nội (Kumho)", "origin": "Hồ Chí Minh", "destination": "Hà Nội", "distance": 1720, "minutes": 1850 },
+    { "key": "route_hl_hcm_hn", "operatorKey": "op_hl", "name": "Sài Gòn (VP) - Hà Nội (Hoàng Long)", "origin": "Hồ Chí Minh", "destination": "Hà Nội", "distance": 1720, "minutes": 1900 },
+    { "key": "route_lh_hcm_hn", "operatorKey": "op_lh", "name": "Sài Gòn (BXMĐ) - Hà Nội (Liên Hưng)", "origin": "Hồ Chí Minh", "destination": "Hà Nội", "distance": 1720, "minutes": 1820 },
+
+    { "key": "route_futa_hcm_dl", "operatorKey": "op_futa", "name": "Sài Gòn (BXMT) - Đà Lạt", "origin": "Hồ Chí Minh", "destination": "Đà Lạt", "distance": 308, "minutes": 420 },
+    { "key": "route_futa_dl_hcm", "operatorKey": "op_futa", "name": "Đà Lạt - Sài Gòn (BXMT)", "origin": "Đà Lạt", "destination": "Hồ Chí Minh", "distance": 308, "minutes": 420 },
+    { "key": "route_futa_hcm_ct", "operatorKey": "op_futa", "name": "Sài Gòn (BXMT) - Cần Thơ", "origin": "Hồ Chí Minh", "destination": "Cần Thơ", "distance": 169, "minutes": 240 },
+    { "key": "route_futa_ct_hcm", "operatorKey": "op_futa", "name": "Cần Thơ - Sài Gòn (BXMT)", "origin": "Cần Thơ", "destination": "Hồ Chí Minh", "distance": 169, "minutes": 240 },
+    { "key": "route_futa_hcm_vt", "operatorKey": "op_futa", "name": "Sài Gòn (BXMT) - Vũng Tàu", "origin": "Hồ Chí Minh", "destination": "Vũng Tàu", "distance": 95, "minutes": 150 },
+    { "key": "route_futa_hcm_nt", "operatorKey": "op_futa", "name": "Sài Gòn (BXMT) - Nha Trang", "origin": "Hồ Chí Minh", "destination": "Nha Trang", "distance": 435, "minutes": 540 },
+    { "key": "route_futa_hcm_pt", "operatorKey": "op_futa", "name": "Sài Gòn (BXMT) - Phan Thiết", "origin": "Hồ Chí Minh", "destination": "Phan Thiết", "distance": 213, "minutes": 300 },
+    { "key": "route_futa_hcm_rg", "operatorKey": "op_futa", "name": "Sài Gòn (BXMT) - Rạch Giá", "origin": "Hồ Chí Minh", "destination": "Rạch Giá", "distance": 235, "minutes": 360 },
+    { "key": "route_futa_hcm_lx", "operatorKey": "op_futa", "name": "Sài Gòn (BXMT) - Long Xuyên", "origin": "Hồ Chí Minh", "destination": "Long Xuyên", "distance": 189, "minutes": 300 },
+
+    { "key": "route_tb_hcm_dl", "operatorKey": "op_tb", "name": "Sài Gòn (BXMĐ) - Đà Lạt (TB)", "origin": "Hồ Chí Minh", "destination": "Đà Lạt", "distance": 308, "minutes": 400 },
+    { "key": "route_tb_dl_hcm", "operatorKey": "op_tb", "name": "Đà Lạt - Sài Gòn (BXMĐ) (TB)", "origin": "Đà Lạt", "destination": "Hồ Chí Minh", "distance": 308, "minutes": 400 },
+    { "key": "route_tb_hcm_ct", "operatorKey": "op_tb", "name": "Sài Gòn (BXMĐ) - Cần Thơ (TB)", "origin": "Hồ Chí Minh", "destination": "Cần Thơ", "distance": 169, "minutes": 230 },
+
+    { "key": "route_kumho_hcm_vt", "operatorKey": "op_kumho", "name": "Sài Gòn (BXMĐ) - Vũng Tàu (Kumho)", "origin": "Hồ Chí Minh", "destination": "Vũng Tàu", "distance": 95, "minutes": 140 },
+    { "key": "route_kumho_hcm_pt", "operatorKey": "op_kumho", "name": "Sài Gòn (BXMĐ) - Phan Thiết (Kumho)", "origin": "Hồ Chí Minh", "destination": "Phan Thiết", "distance": 213, "minutes": 290 },
+    { "key": "route_kumho_hcm_bmt", "operatorKey": "op_kumho", "name": "Sài Gòn (BXMĐ) - Buôn Ma Thuột", "origin": "Hồ Chí Minh", "destination": "Buon Ma Thuot", "distance": 350, "minutes": 480 },
+
+    { "key": "route_hl_hcm_dn", "operatorKey": "op_hl", "name": "Sài Gòn (VP) - Đà Nẵng", "origin": "Hồ Chí Minh", "destination": "Đà Nẵng", "distance": 960, "minutes": 1200 },
+    { "key": "route_hl_hn_dn", "operatorKey": "op_hl", "name": "Hà Nội - Đà Nẵng (HL)", "origin": "Hà Nội", "destination": "Đà Nẵng", "distance": 760, "minutes": 960 },
+    { "key": "route_hl_hcm_Huế", "operatorKey": "op_hl", "name": "Sài Gòn (VP) - Huế", "origin": "Hồ Chí Minh", "destination": "Huế", "distance": 1050, "minutes": 1320 },
+
+    { "key": "route_lh_hcm_nt", "operatorKey": "op_lh", "name": "Sài Gòn (BXMĐ) - Nha Trang (LH)", "origin": "Hồ Chí Minh", "destination": "Nha Trang", "distance": 435, "minutes": 510 },
+    { "key": "route_lh_hcm_qn", "operatorKey": "op_lh", "name": "Sài Gòn (BXMĐ) - Quy Nhơn", "origin": "Hồ Chí Minh", "destination": "Quy Nhơn", "distance": 650, "minutes": 720 }
   ],
   "routeStops": [
-    { "routeKey": "route_futa_hcm_hn", "stationKey": "st_futa_bxmt", "type": "PICKUP", "orderIndex": 0, "timeOffset": 0 },
-    { "routeKey": "route_futa_hcm_hn", "stationKey": "st_futa_bxn", "type": "DROPOFF", "orderIndex": 1, "timeOffset": 1800 },
+    { "routeKey": "route_futa_hcm_hn", "stationKey": "st_futa_bxmt", "type": "PICKUP", "duration": 0, "isOrigin": true, "isDestination": false },
+    { "routeKey": "route_futa_hcm_hn", "stationKey": "st_gen_suoitien", "type": "PICKUP", "duration": 60, "isOrigin": false, "isDestination": false },
+    { "routeKey": "route_futa_hcm_hn", "stationKey": "st_gen_amata", "type": "PICKUP", "duration": 90, "isOrigin": false, "isDestination": false },
+    { "routeKey": "route_futa_hcm_hn", "stationKey": "st_gen_daugiay", "type": "PICKUP", "duration": 120, "isOrigin": false, "isDestination": false },
+    { "routeKey": "route_futa_hcm_hn", "stationKey": "st_hl_th", "type": "DROPOFF", "duration": 1600, "isOrigin": false, "isDestination": false },
+    { "routeKey": "route_futa_hcm_hn", "stationKey": "st_hl_nb", "type": "DROPOFF", "duration": 1660, "isOrigin": false, "isDestination": false },
+    { "routeKey": "route_futa_hcm_hn", "stationKey": "st_gen_phuly", "type": "DROPOFF", "duration": 1720, "isOrigin": false, "isDestination": false },
+    { "routeKey": "route_futa_hcm_hn", "stationKey": "st_futa_bxn", "type": "DROPOFF", "duration": 1800, "isOrigin": false, "isDestination": true },
     
-    { "routeKey": "route_tb_hcm_hn", "stationKey": "st_tb_bxmd", "type": "PICKUP", "orderIndex": 0, "timeOffset": 0 },
-    { "routeKey": "route_tb_hcm_hn", "stationKey": "st_tb_bxg", "type": "DROPOFF", "orderIndex": 1, "timeOffset": 1750 },
+    { "routeKey": "route_tb_hcm_hn", "stationKey": "st_tb_bxmd", "type": "PICKUP", "duration": 0, "isOrigin": true, "isDestination": false },
+    { "routeKey": "route_tb_hcm_hn", "stationKey": "st_gen_suoitien", "type": "PICKUP", "duration": 45, "isOrigin": false, "isDestination": false },
+    { "routeKey": "route_tb_hcm_hn", "stationKey": "st_gen_amata", "type": "PICKUP", "duration": 75, "isOrigin": false, "isDestination": false },
+    { "routeKey": "route_tb_hcm_hn", "stationKey": "st_hl_vinh", "type": "DROPOFF", "duration": 1400, "isOrigin": false, "isDestination": false },
+    { "routeKey": "route_tb_hcm_hn", "stationKey": "st_hl_th", "type": "DROPOFF", "duration": 1600, "isOrigin": false, "isDestination": false },
+    { "routeKey": "route_tb_hcm_hn", "stationKey": "st_tb_bxg", "type": "DROPOFF", "duration": 1750, "isOrigin": false, "isDestination": true },
     
-    { "routeKey": "route_kumho_hcm_hn", "stationKey": "st_kumho_bxmd", "type": "PICKUP", "orderIndex": 0, "timeOffset": 0 },
-    { "routeKey": "route_kumho_hcm_hn", "stationKey": "st_kumho_bxmd_hn", "type": "DROPOFF", "orderIndex": 1, "timeOffset": 1850 },
+    { "routeKey": "route_kumho_hcm_hn", "stationKey": "st_kumho_bxmd", "type": "PICKUP", "duration": 0, "isOrigin": true, "isDestination": false },
+    { "routeKey": "route_kumho_hcm_hn", "stationKey": "st_gen_suoitien", "type": "PICKUP", "duration": 45, "isOrigin": false, "isDestination": false },
+    { "routeKey": "route_kumho_hcm_hn", "stationKey": "st_gen_amata", "type": "PICKUP", "duration": 75, "isOrigin": false, "isDestination": false },
+    { "routeKey": "route_kumho_hcm_hn", "stationKey": "st_gen_daugiay", "type": "PICKUP", "duration": 110, "isOrigin": false, "isDestination": false },
+    { "routeKey": "route_kumho_hcm_hn", "stationKey": "st_hl_Huế", "type": "DROPOFF", "duration": 1100, "isOrigin": false, "isDestination": false },
+    { "routeKey": "route_kumho_hcm_hn", "stationKey": "st_hl_vinh", "type": "DROPOFF", "duration": 1500, "isOrigin": false, "isDestination": false },
+    { "routeKey": "route_kumho_hcm_hn", "stationKey": "st_hl_nb", "type": "DROPOFF", "duration": 1750, "isOrigin": false, "isDestination": false },
+    { "routeKey": "route_kumho_hcm_hn", "stationKey": "st_kumho_bxmd_hn", "type": "DROPOFF", "duration": 1850, "isOrigin": false, "isDestination": true },
 
-    { "routeKey": "route_hl_hcm_hn", "stationKey": "st_hl_bxmd", "type": "PICKUP", "orderIndex": 0, "timeOffset": 0 },
-    { "routeKey": "route_hl_hcm_hn", "stationKey": "st_hl_bxn", "type": "DROPOFF", "orderIndex": 1, "timeOffset": 1900 },
+    { "routeKey": "route_hl_hcm_hn", "stationKey": "st_hl_bxmd", "type": "PICKUP", "duration": 0, "isOrigin": true, "isDestination": false },
+    { "routeKey": "route_hl_hcm_hn", "stationKey": "st_gen_suoitien", "type": "PICKUP", "duration": 30, "isOrigin": false, "isDestination": false },
+    { "routeKey": "route_hl_hcm_hn", "stationKey": "st_gen_amata", "type": "PICKUP", "duration": 60, "isOrigin": false, "isDestination": false },
+    { "routeKey": "route_hl_hcm_hn", "stationKey": "st_hl_dn", "type": "DROPOFF", "duration": 1200, "isOrigin": false, "isDestination": false },
+    { "routeKey": "route_hl_hcm_hn", "stationKey": "st_hl_vinh", "type": "DROPOFF", "duration": 1600, "isOrigin": false, "isDestination": false },
+    { "routeKey": "route_hl_hcm_hn", "stationKey": "st_hl_th", "type": "DROPOFF", "duration": 1750, "isOrigin": false, "isDestination": false },
+    { "routeKey": "route_hl_hcm_hn", "stationKey": "st_hl_bxn", "type": "DROPOFF", "duration": 1900, "isOrigin": false, "isDestination": true },
 
-    { "routeKey": "route_lh_hcm_hn", "stationKey": "st_lh_bxmd", "type": "PICKUP", "orderIndex": 0, "timeOffset": 0 },
-    { "routeKey": "route_lh_hcm_hn", "stationKey": "st_lh_bxn", "type": "DROPOFF", "orderIndex": 1, "timeOffset": 1820 }
+    { "routeKey": "route_lh_hcm_hn", "stationKey": "st_lh_bxmd", "type": "PICKUP", "duration": 0, "isOrigin": true, "isDestination": false },
+    { "routeKey": "route_lh_hcm_hn", "stationKey": "st_gen_suoitien", "type": "PICKUP", "duration": 45, "isOrigin": false, "isDestination": false },
+    { "routeKey": "route_lh_hcm_hn", "stationKey": "st_gen_amata", "type": "PICKUP", "duration": 75, "isOrigin": false, "isDestination": false },
+    { "routeKey": "route_lh_hcm_hn", "stationKey": "st_gen_daugiay", "type": "PICKUP", "duration": 110, "isOrigin": false, "isDestination": false },
+    { "routeKey": "route_lh_hcm_hn", "stationKey": "st_lh_qn", "type": "DROPOFF", "duration": 700, "isOrigin": false, "isDestination": false },
+    { "routeKey": "route_lh_hcm_hn", "stationKey": "st_lh_dn", "type": "DROPOFF", "duration": 1100, "isOrigin": false, "isDestination": false },
+    { "routeKey": "route_lh_hcm_hn", "stationKey": "st_lh_bxn", "type": "DROPOFF", "duration": 1820, "isOrigin": false, "isDestination": true },
+
+    { "routeKey": "route_futa_hcm_dl", "stationKey": "st_futa_bxmt", "type": "PICKUP", "duration": 0, "isOrigin": true, "isDestination": false },
+    { "routeKey": "route_futa_hcm_dl", "stationKey": "st_futa_dl", "type": "DROPOFF", "duration": 420, "isOrigin": false, "isDestination": true },
+
+    { "routeKey": "route_futa_dl_hcm", "stationKey": "st_futa_dl", "type": "PICKUP", "duration": 0, "isOrigin": true, "isDestination": false },
+    { "routeKey": "route_futa_dl_hcm", "stationKey": "st_futa_bxmt", "type": "DROPOFF", "duration": 420, "isOrigin": false, "isDestination": true },
+
+    { "routeKey": "route_futa_hcm_ct", "stationKey": "st_futa_bxmt", "type": "PICKUP", "duration": 0, "isOrigin": true, "isDestination": false },
+    { "routeKey": "route_futa_hcm_ct", "stationKey": "st_futa_ct", "type": "DROPOFF", "duration": 240, "isOrigin": false, "isDestination": true },
+
+    { "routeKey": "route_futa_ct_hcm", "stationKey": "st_futa_ct", "type": "PICKUP", "duration": 0, "isOrigin": true, "isDestination": false },
+    { "routeKey": "route_futa_ct_hcm", "stationKey": "st_futa_bxmt", "type": "DROPOFF", "duration": 240, "isOrigin": false, "isDestination": true },
+
+    { "routeKey": "route_futa_hcm_vt", "stationKey": "st_futa_bxmt", "type": "PICKUP", "duration": 0, "isOrigin": true, "isDestination": false },
+    { "routeKey": "route_futa_hcm_vt", "stationKey": "st_futa_vt", "type": "DROPOFF", "duration": 150, "isOrigin": false, "isDestination": true },
+
+    { "routeKey": "route_futa_hcm_nt", "stationKey": "st_futa_bxmt", "type": "PICKUP", "duration": 0, "isOrigin": true, "isDestination": false },
+    { "routeKey": "route_futa_hcm_nt", "stationKey": "st_futa_nt", "type": "DROPOFF", "duration": 540, "isOrigin": false, "isDestination": true },
+
+    { "routeKey": "route_futa_hcm_pt", "stationKey": "st_futa_bxmt", "type": "PICKUP", "duration": 0, "isOrigin": true, "isDestination": false },
+    { "routeKey": "route_futa_hcm_pt", "stationKey": "st_futa_pt", "type": "DROPOFF", "duration": 300, "isOrigin": false, "isDestination": true },
+
+    { "routeKey": "route_futa_hcm_rg", "stationKey": "st_futa_bxmt", "type": "PICKUP", "duration": 0, "isOrigin": true, "isDestination": false },
+    { "routeKey": "route_futa_hcm_rg", "stationKey": "st_futa_rg", "type": "DROPOFF", "duration": 360, "isOrigin": false, "isDestination": true },
+
+    { "routeKey": "route_futa_hcm_lx", "stationKey": "st_futa_bxmt", "type": "PICKUP", "duration": 0, "isOrigin": true, "isDestination": false },
+    { "routeKey": "route_futa_hcm_lx", "stationKey": "st_futa_lx", "type": "DROPOFF", "duration": 300, "isOrigin": false, "isDestination": true },
+
+    { "routeKey": "route_tb_hcm_dl", "stationKey": "st_tb_bxmd", "type": "PICKUP", "duration": 0, "isOrigin": true, "isDestination": false },
+    { "routeKey": "route_tb_hcm_dl", "stationKey": "st_tb_bl", "type": "DROPOFF", "duration": 240, "isOrigin": false, "isDestination": false },
+    { "routeKey": "route_tb_hcm_dl", "stationKey": "st_tb_dl", "type": "DROPOFF", "duration": 400, "isOrigin": false, "isDestination": true },
+
+    { "routeKey": "route_tb_dl_hcm", "stationKey": "st_tb_dl", "type": "PICKUP", "duration": 0, "isOrigin": true, "isDestination": false },
+    { "routeKey": "route_tb_dl_hcm", "stationKey": "st_tb_bxmd", "type": "DROPOFF", "duration": 400, "isOrigin": false, "isDestination": true },
+
+    { "routeKey": "route_tb_hcm_ct", "stationKey": "st_tb_bxmd", "type": "PICKUP", "duration": 0, "isOrigin": true, "isDestination": false },
+    { "routeKey": "route_tb_hcm_ct", "stationKey": "st_tb_ct", "type": "DROPOFF", "duration": 230, "isOrigin": false, "isDestination": true },
+
+    { "routeKey": "route_kumho_hcm_vt", "stationKey": "st_kumho_bxmd", "type": "PICKUP", "duration": 0, "isOrigin": true, "isDestination": false },
+    { "routeKey": "route_kumho_hcm_vt", "stationKey": "st_kumho_vt", "type": "DROPOFF", "duration": 140, "isOrigin": false, "isDestination": true },
+
+    { "routeKey": "route_kumho_hcm_pt", "stationKey": "st_kumho_bxmd", "type": "PICKUP", "duration": 0, "isOrigin": true, "isDestination": false },
+    { "routeKey": "route_kumho_hcm_pt", "stationKey": "st_kumho_pt", "type": "DROPOFF", "duration": 290, "isOrigin": false, "isDestination": true },
+
+    { "routeKey": "route_kumho_hcm_bmt", "stationKey": "st_kumho_bxmd", "type": "PICKUP", "duration": 0, "isOrigin": true, "isDestination": false },
+    { "routeKey": "route_kumho_hcm_bmt", "stationKey": "st_kumho_bmt", "type": "DROPOFF", "duration": 480, "isOrigin": false, "isDestination": true },
+
+    { "routeKey": "route_hl_hcm_dn", "stationKey": "st_hl_bxmd", "type": "PICKUP", "duration": 0, "isOrigin": true, "isDestination": false },
+    { "routeKey": "route_hl_hcm_dn", "stationKey": "st_hl_dn", "type": "DROPOFF", "duration": 1200, "isOrigin": false, "isDestination": true },
+
+    { "routeKey": "route_hl_hn_dn", "stationKey": "st_hl_bxn", "type": "PICKUP", "duration": 0, "isOrigin": true, "isDestination": false },
+    { "routeKey": "route_hl_hn_dn", "stationKey": "st_hl_vinh", "type": "DROPOFF", "duration": 300, "isOrigin": false, "isDestination": false },
+    { "routeKey": "route_hl_hn_dn", "stationKey": "st_hl_dn", "type": "DROPOFF", "duration": 960, "isOrigin": false, "isDestination": true },
+
+    { "routeKey": "route_hl_hcm_Huế", "stationKey": "st_hl_bxmd", "type": "PICKUP", "duration": 0, "isOrigin": true, "isDestination": false },
+    { "routeKey": "route_hl_hcm_Huế", "stationKey": "st_hl_Huế", "type": "DROPOFF", "duration": 1320, "isOrigin": false, "isDestination": true },
+
+    { "routeKey": "route_lh_hcm_nt", "stationKey": "st_lh_bxmd", "type": "PICKUP", "duration": 0, "isOrigin": true, "isDestination": false },
+    { "routeKey": "route_lh_hcm_nt", "stationKey": "st_lh_nt", "type": "DROPOFF", "duration": 510, "isOrigin": false, "isDestination": true },
+
+    { "routeKey": "route_lh_hcm_qn", "stationKey": "st_lh_bxmd", "type": "PICKUP", "duration": 0, "isOrigin": true, "isDestination": false },
+    { "routeKey": "route_lh_hcm_qn", "stationKey": "st_lh_qn", "type": "DROPOFF", "duration": 720, "isOrigin": false, "isDestination": true }
+  ],
+  "trips": [
+    { "key": "trip_001", "routeKey": "route_futa_hcm_hn", "busKey": "bus_futa_01", "departureTime": "2024-05-20T08:00:00", "price": 950000 },
+    { "key": "trip_002", "routeKey": "route_futa_hcm_hn", "busKey": "bus_futa_02", "departureTime": "2024-05-20T14:00:00", "price": 950000 },
+    { "key": "trip_003", "routeKey": "route_tb_hcm_hn", "busKey": "bus_tb_01", "departureTime": "2024-05-20T09:00:00", "price": 900000 },
+    { "key": "trip_004", "routeKey": "route_hl_hcm_hn", "busKey": "bus_hl_01", "departureTime": "2024-05-20T11:00:00", "price": 850000 },
+    { "key": "trip_005", "routeKey": "route_lh_hcm_hn", "busKey": "bus_lh_01", "departureTime": "2024-05-20T19:00:00", "price": 920000 },
+    { "key": "trip_006", "routeKey": "route_kumho_hcm_hn", "busKey": "bus_kumho_01", "departureTime": "2024-05-20T08:30:00", "price": 980000 }
   ]
 }
