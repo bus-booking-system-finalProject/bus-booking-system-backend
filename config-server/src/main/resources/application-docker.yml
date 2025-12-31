@@ -1,0 +1,12 @@
+server:
+  port: 8888
+spring:
+  application.name: config-server
+  cloud:
+    config:
+      server:
+        git:
+          uri: https://github.com/thienanle04/vexesieure-config-server.git
+          default-label: main
+          username: thienanle04
+          password: ${GITHUB_PAT}

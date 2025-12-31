@@ -51,6 +51,7 @@ services:
     # 'build' tells docker-compose to build this image
     build:
       context: ./config-server
+      dockerfile: Dockerfile.dev
       args:
         # This path is from your Dockerfile
         JAR_FILE: config-server-0.0.1-SNAPSHOT.jar
@@ -63,6 +64,7 @@ services:
       timeout: 5s
       retries: 10
     environment:
+      - SPRING_PROFILES_ACTIVE=${ACTIVE_PROFILE}
       # This reads the PAT from your .env file
       - GITHUB_PAT=${GITHUB_PAT}
     networks:
@@ -72,6 +74,7 @@ services:
     hostname: service-registry
     build:
       context: ./service-registry
+      dockerfile: Dockerfile.dev
       args:
         JAR_FILE: service-registry-0.0.1-SNAPSHOT.jar
     image: com.booking/service-registry:0.0.1-SNAPSHOT
@@ -95,6 +98,7 @@ services:
     hostname: user-service
     build:
       context: ./services/user-service
+      dockerfile: Dockerfile.dev
       args:
         JAR_FILE: user-service-0.0.1-SNAPSHOT.jar
     image: com.booking/user-service:0.0.1-SNAPSHOT
@@ -120,6 +124,7 @@ services:
     hostname: booking-service
     build:
       context: ./services/booking-service
+      dockerfile: Dockerfile.dev
       args:
         JAR_FILE: booking-service-0.0.1-SNAPSHOT.jar
     image: com.booking/booking-service:0.0.1-SNAPSHOT
@@ -163,6 +168,7 @@ services:
     hostname: api-gateway
     build:
       context: ./api-gateway
+      dockerfile: Dockerfile.dev
       args:
         JAR_FILE: api-gateway-0.0.1-SNAPSHOT.jar
     image: com.booking/api-gateway:0.0.1-SNAPSHOT
