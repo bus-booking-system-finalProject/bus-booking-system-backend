@@ -2,22 +2,6 @@ spring:
   application:
     name: user-service
 
-  mail:
-    host: smtp.gmail.com
-    port: 587
-    username: vhoangtestmail@gmail.com
-    password: ${EMAIL_PASSWORD}
-    properties:
-      mail:
-        smtp:
-          auth: true
-          starttls:
-            enable: true
-          connectiontimeout: 5000
-          timeout: 3000
-          writetimeout: 5000
-
-
 springdoc:
   api-docs:
     enabled: true

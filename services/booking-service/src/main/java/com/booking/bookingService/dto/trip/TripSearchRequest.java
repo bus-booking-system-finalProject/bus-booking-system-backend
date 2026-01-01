@@ -26,7 +26,7 @@ public class TripSearchRequest {
     @Builder.Default
     private Integer passengers = 1;
     
-    private List<String> busTypes;       // standard | limousine | sleeper
+    private List<String> busTypes;
 
     @DateTimeFormat(pattern = "HH:mm")
     private LocalTime minDepartureTime;
@@ -39,7 +39,7 @@ public class TripSearchRequest {
 
     private String sort;
     
-    private List<String> operators; // List of Operator Names
+    private List<String> operators;
 
     // Pagination
     @Builder.Default

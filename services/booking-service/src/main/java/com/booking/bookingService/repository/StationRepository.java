@@ -11,4 +11,6 @@ public interface StationRepository extends JpaRepository<Station, UUID> {
     List<Station> findByOperatorId(UUID operatorId);
     // Helper to find a specific station during seeding
     Station findByOperatorIdAndName(UUID operatorId, String name);
+
+    List<Station> findByCity(String city);
 }

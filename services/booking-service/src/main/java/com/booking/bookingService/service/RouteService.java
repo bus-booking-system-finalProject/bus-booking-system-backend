@@ -1,8 +1,12 @@
 package com.booking.bookingService.service;
 
+import com.booking.bookingService.Enum.StopType;
+import com.booking.bookingService.dto.common.PaginationDto;
 import com.booking.bookingService.dto.route.RouteRequest;
 import com.booking.bookingService.dto.route.RouteResponse;
-import com.booking.bookingService.dto.route.RouteStopResponse;
+import com.booking.bookingService.dto.route.RouteSearchRequest;
+import com.booking.bookingService.dto.route.RouteSearchResponse;
+import com.booking.bookingService.dto.route.RouteResponse.DetailsDto;
 import com.booking.bookingService.exception.ResourceNotFoundException;
 import com.booking.bookingService.model.Operator;
 import com.booking.bookingService.model.Route;
@@ -11,9 +15,15 @@ import com.booking.bookingService.model.Station;
 import com.booking.bookingService.repository.OperatorRepository;
 import com.booking.bookingService.repository.RouteRepository;
 import com.booking.bookingService.repository.StationRepository;
+import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.transaction.annotation.Transactional;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -121,28 +131,111 @@ public class RouteService {
 
     // Helper method for mapping
     private RouteResponse mapToDto(Route route) {
-        List<RouteStopResponse> stopDtos = route.getStops().stream()
-            .map(stop -> RouteStopResponse.builder()
-                .id(stop.getId())
-                .stationId(stop.getStation().getId())
-                .name(stop.getStation().getName())
-                .address(stop.getFullAddress()) // Uses logic from model
-                .type(stop.getType())
-                .duration(stop.getDuration())
-                .isOrigin(stop.isOrigin())
-                .isDestination(stop.isDestination())
-                .build())
-            .toList();
+        List<RouteStop> routeStops = route.getStops();
+
+        List<RouteResponse.StopDto> pickupPoints = routeStops.stream()
+                .map(this::mapToStopDto)
+                .collect(Collectors.toList());
+
+        List<RouteResponse.StopDto> dropoffPoints = routeStops.stream()
+                .filter(stop -> stop.getType() == StopType.DROPOFF)
+                .map(this::mapToStopDto)
+                .collect(Collectors.toList());
+        
+        RouteResponse.StopDto fromDto = routeStops.stream()
+                .filter(stop -> stop.isOrigin())
+                .findFirst()
+                .map(this::mapToStopDto)
+                .orElse(null);
+
+        RouteResponse.StopDto toDto = routeStops.stream()
+                .filter(stop -> stop.isDestination())
+                .findFirst()
+                .map(this::mapToStopDto)
+                .orElse(null);
+        
+        RouteResponse.OperatorDto operator = RouteResponse.OperatorDto.builder()
+            .id(route.getOperator().getId())
+            .name(route.getOperator().getName())
+            .image(route.getOperator().getImage())
+            .build();
 
         return RouteResponse.builder()
             .id(route.getId())
-            .name(route.getName())
-            .operatorId(route.getOperator().getId())
-            .origin(route.getOrigin())
-            .destination(route.getDestination())
-            .distanceKm(route.getDistanceKm())
-            .estimatedMinutes(route.getEstimatedMinutes())
-            .stops(stopDtos)
+            .details(DetailsDto.builder()
+                .name(route.getName())
+                .origin(route.getOrigin())
+                .destination(route.getDestination())
+                .distanceKm(route.getDistanceKm())
+                .estimatedMinutes(route.getEstimatedMinutes())
+                .build()
+            )
+            .pickupPoints(pickupPoints)
+            .dropoffPoints(dropoffPoints)
+            .from(fromDto)
+            .to(toDto)
+            .operator(operator)
             .build();
+    }
+
+    public RouteSearchResponse searchRoutes(RouteSearchRequest request) {
+        Pageable pageable = PageRequest.of(request.getPage(), request.getLimit());
+
+        Specification<Route> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            // Search by Name (Partial match, case-insensitive)
+            if (request.getName() != null && !request.getName().isEmpty()) {
+                predicates.add(cb.like(cb.lower(root.get("name")), "%" + request.getName().toLowerCase() + "%"));
+            }
+
+            // Filter by Origin
+            if (request.getOrigin() != null && !request.getOrigin().isEmpty()) {
+                predicates.add(cb.equal(root.get("origin"), request.getOrigin()));
+            }
+
+            // Filter by Destination
+            if (request.getDestination() != null && !request.getDestination().isEmpty()) {
+                predicates.add(cb.equal(root.get("destination"), request.getDestination()));
+            }
+
+            // Filter by Operator
+            if (request.getOperator() != null && !request.getOperator().isEmpty()) {
+                predicates.add(cb.equal(root.get("operator").get("name"), request.getOperator()));
+            }
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        // Execute Query
+        Page<Route> routePage = routeRepository.findAll(spec, pageable);
+
+        // Map Entities to RouteResponse List
+        List<RouteResponse> routeList = routePage.getContent().stream()
+                .map(this::mapToDto)
+                .toList();
+
+        // Build PaginationDto
+        PaginationDto pagination = PaginationDto.builder()
+                .total((int) routePage.getTotalElements())
+                .limit(routePage.getSize())
+                .page(routePage.getNumber())
+                .totalPages(routePage.getTotalPages())
+                .build();
+
+        // Return the Combined Response
+        return RouteSearchResponse.builder()
+                .routes(routeList)
+                .pagination(pagination)
+                .build();
+    }
+
+    private RouteResponse.StopDto mapToStopDto(RouteStop stop) {
+        return RouteResponse.StopDto.builder()
+                .id(stop.getId())
+                .name(stop.getStation().getName())
+                .address(stop.getFullAddress())
+                .duration(stop.getDuration())
+                .build();
     }
 }

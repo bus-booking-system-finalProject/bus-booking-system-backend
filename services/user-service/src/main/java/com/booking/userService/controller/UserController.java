@@ -100,9 +100,13 @@ public class UserController {
 
     @PostMapping("/refresh")
     public ResponseEntity<?> refreshToken(
-            @CookieValue(name = "refreshToken") String requestRefreshToken,
+            @CookieValue(name = "refreshToken", required = false) String requestRefreshToken,
             HttpServletResponse servletResponse
     ) {
+        if (requestRefreshToken == null || requestRefreshToken.isEmpty()) {
+            return buildErrorResponse("Refresh token is missing", HttpStatus.UNAUTHORIZED);
+        }
+        
         return userService.findByRefreshToken(requestRefreshToken)
                 .filter(user -> jwtService.isTokenValid(requestRefreshToken, user))
                 .map(user -> {
@@ -121,13 +125,7 @@ public class UserController {
 
                     return ResponseEntity.ok((Object) response);
                 })
-                .orElseGet(() -> {
-                    Map<String, Object> errorResponse = new HashMap<>();
-                    errorResponse.put("success", false);
-                    errorResponse.put("data", null);
-                    errorResponse.put("message", "Invalid or expired refresh token");
-                    return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
-                });
+                .orElseGet(() -> buildErrorResponse("Invalid or expired refresh token", HttpStatus.UNAUTHORIZED));
     }
 
     @PostMapping("/logout")
@@ -256,5 +254,13 @@ public class UserController {
         response.put("success", true);
         response.put("message", "Password has been reset successfully.");
         return ResponseEntity.ok(response);
+    }
+
+    private ResponseEntity<Object> buildErrorResponse(String message, HttpStatus status) {
+        Map<String, Object> errorResponse = new HashMap<>();
+        errorResponse.put("success", false);
+        errorResponse.put("data", null);
+        errorResponse.put("message", message);
+        return ResponseEntity.status(status).body(errorResponse);
     }
 }
