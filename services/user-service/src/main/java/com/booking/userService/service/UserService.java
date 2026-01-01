@@ -7,6 +7,7 @@ import com.booking.userService.exception.EmailAlreadyExistsException;
 import com.booking.userService.model.Role;
 import com.booking.userService.dto.UserResponse;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -24,6 +25,12 @@ import com.booking.userService.model.VerificationToken;
 import com.booking.userService.repository.VerificationTokenRepository;
 import com.booking.userService.exception.InvalidTokenException;
 
+import com.cloudinary.Cloudinary;
+import com.cloudinary.utils.ObjectUtils;
+import org.springframework.web.multipart.MultipartFile;
+import java.io.IOException;
+import java.util.Map;
+
 @Service
 public class UserService {
 
@@ -38,15 +45,23 @@ public class UserService {
     @Autowired
     private EmailService emailService;
 
+    private final Cloudinary cloudinary;
+
+    // --- NEW: Inject Frontend URL from config ---
+    @Value("${app.frontend.url}")
+    private String frontendUrl;
+
     @Autowired
     public UserService(
             UserRepository userRepository, 
             PasswordEncoder passwordEncoder,
-            UserDetailsServiceImpl userDetailsService 
+            UserDetailsServiceImpl userDetailsService, 
+            Cloudinary cloudinary
     ) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.userDetailsService = userDetailsService;
+        this.cloudinary = cloudinary;
     }
 
     public User registerUser(RegisterRequest request) {
@@ -69,7 +84,7 @@ public class UserService {
         
         // Send Email (Async)
         // NOTE: In production, change localhost to your Frontend URL
-        String verifyUrl = "http://localhost:5173/bus-booking-system-frontend/verify-email?token=" + token.getToken();
+        String verifyUrl = frontendUrl + "/verify-email?token=" + token.getToken();
         emailService.sendEmail(savedUser.getEmail(), "Account Verification", "Click here to verify: " + verifyUrl);
 
         return savedUser;
@@ -101,7 +116,7 @@ public class UserService {
 
         VerificationToken token = new VerificationToken(user);
         tokenRepository.save(token);
-        String resetUrl = "http://localhost:5173/bus-booking-system-frontend/reset-password?token=" + token.getToken();
+        String resetUrl = frontendUrl + "/reset-password?token=" + token.getToken();
         emailService.sendEmail(email, "Reset Password", "Click here to reset: " + resetUrl);
     }
 
@@ -169,6 +184,42 @@ public class UserService {
         }
 
         return userRepository.save(user);
+    }
+
+    // --- UPDATED: Upload Avatar to Cloudinary ---
+    @SuppressWarnings("rawtypes")
+    public String uploadAvatar(String email, MultipartFile file) {
+        try {
+            // 1. Validate file
+            if (file.isEmpty()) {
+                throw new RuntimeException("Empty file");
+            }
+
+            // 2. Upload to Cloudinary
+            // "public_id" lets us name the file (optional, but good for organizing)
+            // "overwrite" ensures we replace old images if we use the same name
+            Map params = ObjectUtils.asMap(
+                "folder", "bus-booking-avatars", 
+                "resource_type", "image"
+            );
+            
+            Map uploadResult = cloudinary.uploader().upload(file.getBytes(), params);
+
+            // 3. Extract the Secure URL (https)
+            String avatarUrl = (String) uploadResult.get("secure_url");
+
+            // 4. Update the User in DB
+            User user = userRepository.findByEmail(email)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+            
+            user.setAvatarUrl(avatarUrl);
+            userRepository.save(user);
+
+            return avatarUrl;
+
+        } catch (IOException e) {
+            throw new RuntimeException("Cloudinary upload failed: " + e.getMessage());
+        }
     }
 
     // --- NEW: Change Password ---
