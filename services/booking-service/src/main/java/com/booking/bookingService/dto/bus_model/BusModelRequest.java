@@ -33,4 +33,6 @@ public class BusModelRequest {
     @NotEmpty(message = "Seat map definitions are required")
     @NotNull(message = "Seat map cannot be null")
     private List<SeatDto> seats;
+
+    private List<String> keptImages;
 }

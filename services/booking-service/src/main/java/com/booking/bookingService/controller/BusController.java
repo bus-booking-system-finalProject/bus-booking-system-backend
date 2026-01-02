@@ -9,7 +9,13 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
 import java.util.UUID;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 
 @RestController
 @RequestMapping("/buses")
@@ -20,12 +26,13 @@ public class BusController {
     // --- Bus Models (Templates) ---
 
     // 1. Create Model (Must include seatDefinitions)
-    @PostMapping("/models")
+    @PostMapping(value = "/models", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> createBusModel(
             @Valid @RequestBody BusModelRequest request,
+            @RequestPart(value = "images", required = false) List<MultipartFile> images,
             @CurrentOperator UUID operatorId
     ) {
-        return ResponseEntity.status(201).body(ApiResponse.success(busService.createBusModel(request, operatorId), "Bus Model created successfully"));
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(busService.createBusModel(request, images, operatorId), "Bus Model created successfully"));
     }
 
     @GetMapping("/models")
@@ -41,14 +48,15 @@ public class BusController {
         return ResponseEntity.ok(ApiResponse.success(busService.getBusModelDetails(modelId, operatorId), "Bus Model Details retrieved successfully"));
     }
 
-    @PutMapping("/models/{modelId}")
+    @PutMapping(value = "/models/{modelId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> updateBusModel(
             @PathVariable UUID modelId, 
-            @Valid @RequestBody BusModelRequest request,
+            @RequestPart("model") @Valid BusModelRequest request,
+            @RequestPart(value = "images", required = false) List<MultipartFile> images,
             @CurrentOperator UUID operatorId
     ) {
-        Object result = busService.updateBusModel(modelId, request, operatorId);
-        return ResponseEntity.ok(ApiResponse.success(result, "Seat map updated successfully"));
+        Object result = busService.updateBusModel(modelId, request, images, operatorId);
+        return ResponseEntity.ok(ApiResponse.success(result, "Bus Model updated successfully"));
     }
 
 

@@ -2,6 +2,8 @@ package com.booking.bookingService.dto.bus_model;
 
 import lombok.Builder;
 import lombok.Data;
+
+import java.util.List;
 import java.util.UUID;
 
 @Data
@@ -16,4 +18,6 @@ public class BusModelResponse {
     private Boolean hasWC;
 
     private int seatCapacity;
+
+    private List<String> images;
 }

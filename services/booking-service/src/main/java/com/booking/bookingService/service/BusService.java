@@ -20,7 +20,9 @@ import com.booking.bookingService.repository.SeatRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -32,11 +34,12 @@ public class BusService {
     private final BusModelRepository busModelRepository;
     private final OperatorRepository operatorRepository;
     private final SeatRepository seatRepository;
+    private final CloudinaryService cloudinaryService;
 
     // --- 1. BUS MODEL LOGIC (Templates) ---
 
     @Transactional
-    public BusModelResponse createBusModel(BusModelRequest request, UUID operatorId) {
+    public BusModelResponse createBusModel(BusModelRequest request, List<MultipartFile> images, UUID operatorId) {
         Operator operator = operatorRepository.findById(operatorId)
                 .orElseThrow(() -> new ResourceNotFoundException("Operator not found"));
 
@@ -53,6 +56,16 @@ public class BusService {
             typeEnum = BusType.SLEEPER; // Default fallback or throw error
         }
 
+        // Handle Image Uploads
+        List<String> imageUrls = new ArrayList<>();
+        if (images != null && !images.isEmpty()) {
+            for (MultipartFile file : images) {
+                if (!file.isEmpty()) {
+                    imageUrls.add(cloudinaryService.uploadImage(file));
+                }
+            }
+        }
+
         BusModel busModel = BusModel.builder()
                 .operator(operator)
                 .name(request.getName())
@@ -62,6 +75,7 @@ public class BusService {
                 .gridColumns(request.getGridColumns())
                 .isLimousine(Boolean.TRUE.equals(request.getIsLimousine()))
                 .hasWC(Boolean.TRUE.equals(request.getHasWC()))
+                .images(imageUrls)
                 .build();
 
         BusModel savedModel = busModelRepository.save(busModel);
@@ -73,7 +87,7 @@ public class BusService {
     }
 
     @Transactional
-    public BusModelResponse updateBusModel(UUID busModelId, BusModelRequest request, UUID currentOperatorId) {
+    public BusModelResponse updateBusModel(UUID busModelId, BusModelRequest request, List<MultipartFile> images, UUID currentOperatorId) {
         // 1. Find the existing model
         BusModel busModel = busModelRepository.findById(busModelId)
                 .orElseThrow(() -> new ResourceNotFoundException("BusModel not found"));
@@ -98,6 +112,24 @@ public class BusService {
         busModel.setGridColumns(request.getGridColumns()); // Mapping gridColumn from request to gridColumns in entity
         busModel.setLimousine(request.getIsLimousine());
         busModel.setHasWC(request.getHasWC());
+        
+        // --- Image Update Logic ---
+        // 1. Start with the list of images the user wants to keep
+        List<String> finalImages = new ArrayList<>();
+        if (request.getKeptImages() != null) {
+            finalImages.addAll(request.getKeptImages());
+        }
+        
+        // 2. Add newly uploaded images
+        if (images != null && !images.isEmpty()) {
+            for (MultipartFile file : images) {
+                if (!file.isEmpty()) {
+                    finalImages.add(cloudinaryService.uploadImage(file));
+                }
+            }
+        }
+
+        busModel.setImages(finalImages);
 
         // 4. Synchronize the Seat Map
         // We reuse the logic: Clear old seats and insert new ones based on the request definitions
@@ -295,6 +327,7 @@ public class BusService {
                 .isLimousine(busModel.isLimousine())
                 .hasWC(busModel.isHasWC())
                 .seatCapacity(busModel.getSeatCapacity())
+                .images(busModel.getImages())
                 .build();
     }
 

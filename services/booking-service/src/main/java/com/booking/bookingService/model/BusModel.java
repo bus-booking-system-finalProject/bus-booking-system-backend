@@ -4,6 +4,8 @@ import com.booking.bookingService.Enum.BusType;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
+
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -45,6 +47,12 @@ public class BusModel {
     @OneToMany(mappedBy = "model")
     @JsonIgnoreProperties("busModel")
     private List<Bus> buses;
+
+    @ElementCollection
+    @CollectionTable(name = "bus_model_images", joinColumns = @JoinColumn(name = "bus_model_id"))
+    @Column(name = "image_url")
+    @Builder.Default
+    private List<String> images = new ArrayList<>();
     
     // Format: (Limousine) Giường phòng (có WC)
     public String getTypeDisplay() { 
