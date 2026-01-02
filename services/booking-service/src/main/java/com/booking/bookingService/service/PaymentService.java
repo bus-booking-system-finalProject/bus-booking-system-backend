@@ -27,6 +27,7 @@ import vn.payos.model.webhooks.WebhookData;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -34,17 +35,19 @@ import java.util.UUID;
 @Slf4j
 public class PaymentService {
 
+    private final SocketIOService socketIOService;
     private final PayOS payOS;
     private final PaymentRepository paymentRepository;
     private final TicketRepository ticketRepository;
-    private final TripSeatRepository tripSeatRepository; 
+    private final TripSeatRepository tripSeatRepository;
     private final ApplicationEventPublisher eventPublisher;
 
     @Autowired
     private PayOSPaymentRepository payOSPaymentRepository;
 
     @Transactional
-    public CreatePaymentLinkResponse createPaymentLink(UUID ticketId, String returnUrl, String cancelUrl) throws Exception {
+    public CreatePaymentLinkResponse createPaymentLink(UUID ticketId, String returnUrl, String cancelUrl)
+            throws Exception {
         Ticket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new ResourceNotFoundException("Ticket not found"));
 
@@ -53,7 +56,7 @@ public class PaymentService {
         }
 
         // 1. Tạo OrderCode
-        long orderCode = System.currentTimeMillis(); 
+        long orderCode = System.currentTimeMillis();
 
         // 2. Description
         String description = "Ticket " + ticket.getTicketCode();
@@ -99,7 +102,8 @@ public class PaymentService {
         PayOSPayment payment = payOSPaymentRepository.findByOrderCode(orderCode)
                 .orElseThrow(() -> new ResourceNotFoundException("Payment not found for OrderCode: " + orderCode));
 
-        if (PaymentStatus.PAID.equals(payment.getStatus())) return;
+        if (PaymentStatus.PAID.equals(payment.getStatus()))
+            return;
 
         // Cập nhật trạng thái Payment
         payment.setStatus(PaymentStatus.PAID);
@@ -108,6 +112,15 @@ public class PaymentService {
 
         // Cập nhật vé
         Ticket ticket = payment.getTicket();
+
+        // 1. Broadcast to everyone: Seats are now officially BOOKED (removed from map)
+        socketIOService.broadcastSeatUpdate(ticket.getTrip().getId(), ticket.getSeats(), "booked");
+
+        // 2. Notify the specific buyer that their ticket is confirmed
+        socketIOService.sendBookingConfirmation(ticket.getTicketCode(), Map.of(
+                "ticketCode", ticket.getTicketCode(),
+                "status", "CONFIRMED"));
+
         if (ticket.getStatus() == Ticket.TicketStatus.CANCELLED) {
             log.warn("Ticket {} cancelled but payment received. Need refund processing.", ticket.getTicketCode());
             payment.setStatus(Payment.PaymentStatus.REFUNDING);
@@ -125,10 +138,9 @@ public class PaymentService {
         // Cập nhật trạng thái ghế -> BOOKED
         // Tìm các ghế thuộc chuyến xe này và có mã ghế trùng với vé
         List<TripSeat> seats = tripSeatRepository.findByTripIdAndSeat_SeatCodeIn(
-                ticket.getTrip().getId(), 
-                ticket.getSeats()
-        );
-        
+                ticket.getTrip().getId(),
+                ticket.getSeats());
+
         for (TripSeat seat : seats) {
             seat.setStatus(TripSeat.Status.BOOKED);
         }

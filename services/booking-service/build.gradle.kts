@@ -39,6 +39,10 @@ dependencies {
     // --- Reddis ---
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
 
+    // --- Socket.IO ---
+    implementation("com.corundumstudio.socketio:netty-socketio:2.0.3")
+    implementation("org.redisson:redisson:3.24.3")
+
     // PDF Generator (OpenPDF)
     implementation("com.github.librepdf:openpdf:1.3.30")
 

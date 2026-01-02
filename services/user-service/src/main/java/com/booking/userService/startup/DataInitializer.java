@@ -31,7 +31,7 @@ public class DataInitializer implements CommandLineRunner {
     @Override
     public void run(String... args) throws Exception {
         // Check if the admin user already exists
-        if (userRepository.findByEmail(adminEmail).isEmpty()) {
+        if (userRepository.findByEmail(adminEmail).isEmpty()) { 
             
             // If not, create a new admin user
             User admin = User.builder()

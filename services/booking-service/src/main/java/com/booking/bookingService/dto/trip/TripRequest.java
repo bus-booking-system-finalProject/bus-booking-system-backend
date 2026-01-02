@@ -40,7 +40,9 @@ public class TripRequest {
 
     private BigDecimal discountPrice;
 
-    private String status; // OPTIONAL: SCHEDULED (default), CANCELLED, COMPLETED
+    private String status; // OPTIONAL: SCHEDULED (default), CANCELLED, COMPLETED, DELAYED
+
+    private Integer delayMinutes; // OPTIONAL: Only used when status is DELAYED
 
     // If null/empty, the system will use the default RouteStops.
     // If provided, the system will use this list exactly (Add/Delete/Reorder).

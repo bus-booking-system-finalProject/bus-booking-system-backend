@@ -19,53 +19,70 @@ import com.booking.bookingService.security.CustomAccessDeniedHandler;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final GatewayAuthenticationFilter gatewayAuthenticationFilter;
+        private final GatewayAuthenticationFilter gatewayAuthenticationFilter;
 
-    @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http, CustomAccessDeniedHandler accessDeniedHandler) throws Exception {
-        http
-            .csrf(AbstractHttpConfigurer::disable)
-            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .addFilterBefore(gatewayAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-            .exceptionHandling(exception -> exception
-                .accessDeniedHandler(accessDeniedHandler)
-            )
-            .authorizeHttpRequests(auth -> auth
-                // 1. Cấu hình cơ bản
-                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                .requestMatchers("/error").permitAll()
-                .dispatcherTypeMatchers(DispatcherType.FORWARD, DispatcherType.ERROR).permitAll()
+        @Bean
+        public SecurityFilterChain securityFilterChain(HttpSecurity http, CustomAccessDeniedHandler accessDeniedHandler)
+                        throws Exception {
+                http
+                                .csrf(AbstractHttpConfigurer::disable)
+                                .sessionManagement(session -> session
+                                                .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                                .addFilterBefore(gatewayAuthenticationFilter,
+                                                UsernamePasswordAuthenticationFilter.class)
+                                .exceptionHandling(exception -> exception
+                                                .accessDeniedHandler(accessDeniedHandler))
+                                .authorizeHttpRequests(auth -> auth
+                                                // 1. Cấu hình cơ bản
+                                                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                                                .requestMatchers("/error").permitAll()
+                                                .dispatcherTypeMatchers(DispatcherType.FORWARD, DispatcherType.ERROR)
+                                                .permitAll()
+                                                .requestMatchers(HttpMethod.GET, "/v3/api-docs", "/v3/api-docs/**",
+                                                                "/swagger-ui.html",
+                                                                "/swagger-ui/**")
+                                                .permitAll()
 
-                        // 2. LOGIC VÉ (TICKET) - QUAN TRỌNG:
-                        // a. Guest Lock & Unlock ghế (Mới thêm) -> Phải khai báo rõ ràng
-                        .requestMatchers(HttpMethod.POST, "/tickets/lock", "/tickets/unlock").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/tickets/lookup").permitAll()
-                        // b. Guest tạo vé (Submit form) -> POST /tickets
-                        .requestMatchers(HttpMethod.POST, "/tickets").permitAll()
+                                                // Socket.IO is handled by a separate server - should not reach here
+                                                // API Gateway will route /booking/socket.io/** to the Socket.IO server
+                                                // on port 9085
+                                                // If it reaches here, return 404 to prevent static resource handler
+                                                // errors
+                                                .requestMatchers("/socket.io/**").denyAll()
 
-                        // c. Guest hủy vé (PUT /tickets/{uuid}/cancel)
-                        .requestMatchers(HttpMethod.PUT, "/tickets/**").permitAll()
+                                                // 2. LOGIC VÉ (TICKET) - QUAN TRỌNG:
+                                                // a. Guest Lock & Unlock ghế (Mới thêm) -> Phải khai báo rõ ràng
+                                                .requestMatchers(HttpMethod.POST, "/tickets/lock", "/tickets/unlock")
+                                                .permitAll()
+                                                .requestMatchers(HttpMethod.POST, "/tickets/lookup").permitAll()
+                                                // b. Guest tạo vé (Submit form) -> POST /tickets
+                                                .requestMatchers(HttpMethod.POST, "/tickets").permitAll()
 
-                        .requestMatchers("/payments/**").permitAll()
+                                                // c. Guest hủy vé (PUT /tickets/{uuid}/cancel)
+                                                .requestMatchers(HttpMethod.PUT, "/tickets/**").permitAll()
 
-                        // d. Guest xem chi tiết vé (GET /tickets/{uuid})
-                        // Chỉ khớp UUID để tránh trùng với trang lịch sử (GET /tickets)
-                        .requestMatchers(HttpMethod.GET, "/tickets/{id:[0-9a-fA-F-]{36}}").permitAll()
+                                                .requestMatchers("/payments/**").permitAll()
 
-                // 3. MASTER DATA
-                .requestMatchers("/trips/**").permitAll()
+                                                // d. Guest xem chi tiết vé (GET /tickets/{uuid})
+                                                // Chỉ khớp UUID để tránh trùng với trang lịch sử (GET /tickets)
+                                                .requestMatchers(HttpMethod.GET, "/tickets/{id:[0-9a-fA-F-]{36}}")
+                                                .permitAll()
 
-                // ADMIN
-                .requestMatchers("/operators/**", "/buses**", "/routes/**").hasRole("ADMIN")
-                .requestMatchers("/admin/**").hasRole("ADMIN")
+                                                // 3. MASTER DATA
+                                                .requestMatchers("/trips/**").permitAll()
 
-                .requestMatchers(HttpMethod.GET, "/feedback/operators/**").permitAll()
-                
-                .requestMatchers(HttpMethod.POST, "/feedback").authenticated()
+                                                // ADMIN
+                                                .requestMatchers("/operators/**", "/buses**", "/routes/**")
+                                                .hasRole("ADMIN")
+                                                .requestMatchers("/admin/**").hasRole("ADMIN")
 
-                        // 4. API CÒN LẠI -> Cần đăng nhập (Bao gồm xem lịch sử GET /tickets)
-                        .anyRequest().authenticated());
+                                                .requestMatchers(HttpMethod.GET, "/feedback/operators/**").permitAll()
 
-        return http.build();
-    }
+                                                .requestMatchers(HttpMethod.POST, "/feedback").authenticated()
+
+                                                // 4. API CÒN LẠI -> Cần đăng nhập (Bao gồm xem lịch sử GET /tickets)
+                                                .anyRequest().authenticated());
+
+                return http.build();
+        }
 }
