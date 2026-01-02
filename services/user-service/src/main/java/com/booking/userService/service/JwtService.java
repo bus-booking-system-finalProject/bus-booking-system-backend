@@ -1,5 +1,6 @@
 package com.booking.userService.service;
 
+import com.booking.userService.model.Role;
 import com.booking.userService.model.User;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
@@ -29,15 +30,20 @@ public class JwtService {
         // --- Add roles to the access token ---
         Map<String, Object> extraClaims = new HashMap<>();
         if (userDetails instanceof User) {
-             extraClaims.put("role", ((User) userDetails).getRole().name());
+             User user = (User) userDetails;
+            extraClaims.put("role", user.getRole().name());
+            
+            // Inject OperatorId if role is OPERATOR or STAFF
+            if ((user.getRole() == Role.OPERATOR || user.getRole() == Role.STAFF) 
+                && user.getOperatorId() != null) {
+                extraClaims.put("operatorId", user.getOperatorId().toString());
+            }
         }
-        // --- END NEW ---
         
         return Jwts.builder()
                 .claims(extraClaims) // Use the new claims
                 .subject(userDetails.getUsername())
                 .issuedAt(new Date(System.currentTimeMillis()))
-                // --- MODIFIED: Use short expiry ---
                 .expiration(new Date(System.currentTimeMillis() + ACCESS_TOKEN_VALIDITY))
                 .signWith(getSignInKey(), Jwts.SIG.HS256)
                 .compact();

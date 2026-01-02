@@ -82,6 +82,13 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
                     .header("X-User-Email", claims.getSubject())
                     .header("X-User-Role", claims.get("role", String.class))
                     .build();
+            
+            String operatorId = claims.get("operatorId", String.class);
+                if (operatorId != null) {
+                request = request.mutate()
+                        .header("X-Operator-Id", operatorId)
+                        .build();
+            }
 
             return chain.filter(exchange.mutate().request(request).build());
 

@@ -1,9 +1,10 @@
 package com.booking.bookingService.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import jakarta.persistence.*;
 import lombok.*;
-import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -23,16 +24,15 @@ public class Bus {
     @JsonIgnoreProperties({ "buses", "routes", "trips" })
     private Operator operator;
 
+    @ManyToOne
+    @JoinColumn(name = "bus_model_id")
+    @JsonIgnoreProperties("buses")
+    private BusModel model;
+
     private String plateNumber;
-    private String model;
 
-    // Added type to support filtering (Standard, Limousine, Sleeper)
-    // You could also use an Enum here
-    private String type;
-
-    private int seatCapacity;
-
-    @OneToMany(mappedBy = "bus")
-    @JsonIgnoreProperties({ "bus" })
-    private List<Seat> seats;
+    @Builder.Default
+    @Column(name = "is_active", nullable = false)
+    @JsonProperty("isActive")
+    private boolean isActive = true;
 }

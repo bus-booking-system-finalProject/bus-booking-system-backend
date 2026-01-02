@@ -3,7 +3,6 @@ package com.booking.userService.dto;
 import com.booking.userService.model.Role;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
-import lombok.NoArgsConstructor;
 import lombok.Data;
 
 import java.util.Date;

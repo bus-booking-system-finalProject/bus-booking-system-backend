@@ -14,8 +14,6 @@ public class RouteResponse {
     
     private DetailsDto details;
 
-    private OperatorDto operator;
-
     @JsonProperty("pickup_points")
     private List<StopDto> pickupPoints;
 
@@ -24,13 +22,6 @@ public class RouteResponse {
 
     private StopDto from;
     private StopDto to;
-
-    @Data @Builder
-    public static class OperatorDto {
-        private UUID id;
-        private String name;
-        private String image;
-    }
 
     @Data @Builder
     public static class StopDto {

@@ -13,7 +13,6 @@ public class RouteSearchRequest {
     private String name;
     private String origin;
     private String destination;
-    private String operator;
     
     @Builder.Default
     private Integer page = 0;

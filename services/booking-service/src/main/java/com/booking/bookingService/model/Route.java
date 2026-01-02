@@ -1,6 +1,8 @@
 package com.booking.bookingService.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -35,4 +37,9 @@ public class Route {
     @OneToMany(mappedBy = "route", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonIgnoreProperties("route")
     private List<RouteStop> stops;
+
+    @Builder.Default
+    @Column(name = "is_active", nullable = false)
+    @JsonProperty("isActive")
+    private boolean isActive = true;
 }

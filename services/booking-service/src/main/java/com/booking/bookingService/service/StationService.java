@@ -9,6 +9,7 @@ import com.booking.bookingService.repository.OperatorRepository;
 import com.booking.bookingService.repository.StationRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.UUID;
@@ -21,12 +22,10 @@ public class StationService {
     private final StationRepository stationRepository;
     private final OperatorRepository operatorRepository;
 
-    public StationResponse createStation(StationRequest request) {
-        Operator operator = null;
-        if (request.getOperatorId() != null) {
-            operator = operatorRepository.findById(request.getOperatorId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Operator not found"));
-        }
+    @Transactional
+    public StationResponse createStation(StationRequest request, UUID currentOperatorId) {
+        Operator operator = operatorRepository.findById(currentOperatorId)
+                .orElseThrow(() -> new ResourceNotFoundException("Operator account not found"));
 
         Station station = Station.builder()
                 .name(request.getName())
@@ -39,41 +38,49 @@ public class StationService {
         return mapToResponse(stationRepository.save(station));
     }
 
-    public List<StationResponse> getAllStations() {
-        return stationRepository.findAll().stream()
+    public List<StationResponse> getAllStations(UUID currentOperatorId) {
+        return stationRepository.findAllByOperatorId(currentOperatorId).stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
 
-    public StationResponse getStation(UUID id) {
-        Station station = stationRepository.findById(id)
+    public StationResponse getStation(UUID stationId, UUID currentOperatorId) {
+        Station station = stationRepository.findById(stationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Station not found"));
+        
+        validateOwnership(station, currentOperatorId);
+
         return mapToResponse(station);
     }
 
-    public StationResponse updateStation(UUID id, StationRequest request) {
-        Station station = stationRepository.findById(id)
+    @Transactional
+    public StationResponse updateStation(UUID stationId, StationRequest request, UUID currentOperatorId) {
+        Station station = stationRepository.findById(stationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Station not found"));
 
+        // 1. Security Check
+        validateOwnership(station, currentOperatorId);
+
+        // 2. Update fields
         station.setName(request.getName());
         station.setAddress(request.getAddress());
         station.setWard(request.getWard());
         station.setCity(request.getCity());
-
-        if (request.getOperatorId() != null) {
-            Operator operator = operatorRepository.findById(request.getOperatorId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Operator not found"));
-            station.setOperator(operator);
-        }
+        
+        // Note: We DO NOT update the operator here. 
+        // A station cannot change ownership from FUTA to Kumho via this API.
 
         return mapToResponse(stationRepository.save(station));
     }
 
-    public void deleteStation(UUID id) {
-        if (!stationRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Station not found");
-        }
-        stationRepository.deleteById(id);
+    @Transactional
+    public void deleteStation(UUID stationId, UUID currentOperatorId) {
+        Station station = stationRepository.findById(stationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Station not found"));
+
+        validateOwnership(station, currentOperatorId);
+
+        stationRepository.delete(station);
     }
 
     private StationResponse mapToResponse(Station station) {
@@ -83,8 +90,13 @@ public class StationService {
                 .address(station.getAddress())
                 .ward(station.getWard())
                 .city(station.getCity())
-                .operatorId(station.getOperator() != null ? station.getOperator().getId() : null)
-                .operatorName(station.getOperator() != null ? station.getOperator().getName() : null)
                 .build();
+    }
+
+    private void validateOwnership(Station station, UUID currentOperatorId) {
+        if (station.getOperator() == null || !station.getOperator().getId().equals(currentOperatorId)) {
+            // Throw 403 Forbidden if they try to touch another operator's data
+            throw new RuntimeException("Access Denied: You do not own this station");
+        }
     }
 }

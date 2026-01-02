@@ -4,14 +4,13 @@ import lombok.Builder;
 import lombok.Data;
 import java.util.UUID;
 
+import com.booking.bookingService.dto.bus_model.BusModelResponse;
+
 @Data
 @Builder
 public class BusResponse {
     private UUID id;
-    private UUID operatorId;
-    private String operatorName;
     private String plateNumber;
-    private String model;
-    private String type;
-    private int seatCapacity;
+    private BusModelResponse model;
+    private Boolean isActive;
 }

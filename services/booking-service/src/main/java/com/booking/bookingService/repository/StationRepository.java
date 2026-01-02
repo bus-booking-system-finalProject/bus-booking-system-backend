@@ -13,4 +13,6 @@ public interface StationRepository extends JpaRepository<Station, UUID> {
     Station findByOperatorIdAndName(UUID operatorId, String name);
 
     List<Station> findByCity(String city);
+
+    List<Station> findAllByOperatorId(UUID operatorId);
 }

@@ -27,6 +27,8 @@ public class TripSearchRequest {
     private Integer passengers = 1;
     
     private List<String> busTypes;
+    private Boolean isLimousine;
+    private Boolean hasWC;
 
     @DateTimeFormat(pattern = "HH:mm")
     private LocalTime minDepartureTime;

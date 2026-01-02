@@ -34,4 +34,10 @@ public interface TripRepository extends JpaRepository<Trip, UUID>, JpaSpecificat
     @Modifying
     @Query("UPDATE Trip t SET t.availableSeats = t.availableSeats + :amount WHERE t.id = :tripId")
     void incrementAvailableSeats(@Param("tripId") UUID tripId, @Param("amount") int amount);
+
+    List<Trip> findAllByOperatorId(UUID operatorId);
+
+    Boolean existsByRouteIdAndDepartureTime(UUID routeId, LocalDateTime departureTime);
+
+    Boolean existsByRouteId(UUID routeId);
 }

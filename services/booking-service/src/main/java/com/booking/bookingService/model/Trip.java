@@ -31,9 +31,13 @@ public class Trip {
     private Route route;
 
     @ManyToOne
-    @JoinColumn(name = "bus_id")
+    @JoinColumn(name = "bus_id", nullable = true)
     @JsonIgnoreProperties({ "operator", "trips", "seats" })
     private Bus bus;
+
+    @ManyToOne
+    @JoinColumn(name = "bus_model_id", nullable = false)
+    private BusModel busModel;
 
     private LocalDateTime departureTime;
 

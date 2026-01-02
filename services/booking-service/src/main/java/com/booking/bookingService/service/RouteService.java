@@ -1,12 +1,10 @@
 package com.booking.bookingService.service;
 
 import com.booking.bookingService.Enum.StopType;
-import com.booking.bookingService.dto.common.PaginationDto;
 import com.booking.bookingService.dto.route.RouteRequest;
 import com.booking.bookingService.dto.route.RouteResponse;
-import com.booking.bookingService.dto.route.RouteSearchRequest;
-import com.booking.bookingService.dto.route.RouteSearchResponse;
 import com.booking.bookingService.dto.route.RouteResponse.DetailsDto;
+import com.booking.bookingService.dto.route.RouteStopRequest;
 import com.booking.bookingService.exception.ResourceNotFoundException;
 import com.booking.bookingService.model.Operator;
 import com.booking.bookingService.model.Route;
@@ -15,14 +13,12 @@ import com.booking.bookingService.model.Station;
 import com.booking.bookingService.repository.OperatorRepository;
 import com.booking.bookingService.repository.RouteRepository;
 import com.booking.bookingService.repository.StationRepository;
-import jakarta.persistence.criteria.Predicate;
+import com.booking.bookingService.repository.TripRepository;
+
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.transaction.annotation.Transactional;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -34,10 +30,12 @@ public class RouteService {
     private final RouteRepository routeRepository;
     private final OperatorRepository operatorRepository;
     private final StationRepository stationRepository;
+    private final TripRepository tripRepository;
 
-    public RouteResponse createRoute(RouteRequest request) {
-        Operator operator = operatorRepository.findById(request.getOperatorId())
-                .orElseThrow(() -> new ResourceNotFoundException("Operator not found"));
+    @Transactional
+    public RouteResponse createRoute(RouteRequest request, UUID currentOperatorId) {
+       Operator operator = operatorRepository.findById(currentOperatorId)
+                .orElseThrow(() -> new ResourceNotFoundException("Operator account not found"));
 
         Route route = Route.builder()
                 .operator(operator)
@@ -46,87 +44,111 @@ public class RouteService {
                 .destination(request.getDestination())
                 .distanceKm(request.getDistanceKm())
                 .estimatedMinutes(request.getEstimatedMinutes())
+                .stops(new ArrayList<>())
+                .isActive(request.getIsActive())
                 .build();
 
-        if (request.getStops() != null) {
-            List<RouteStop> stops = request.getStops().stream().map(stopReq -> {
-                Station station = stationRepository.findById(stopReq.getStationId())
-                        .orElseThrow(() -> new ResourceNotFoundException("Station not found"));
-                
-                return RouteStop.builder()
-                        .route(route)
-                        .station(station)
-                        .type(stopReq.getType())
-                        .duration(stopReq.getDuration())
-                        .isOrigin(stopReq.isOrigin())
-                        .isDestination(stopReq.isDestination())
-                        .build();
-            }).toList();
-            
-            route.setStops(stops);
+        List<RouteStop> allStops = new ArrayList<>();
+
+        // 1. Process Pick-up Stops
+        if (request.getPickupStops() != null) {
+            allStops.addAll(request.getPickupStops().stream()
+                .map(stopReq -> createRouteStopEntity(route, stopReq, StopType.PICKUP))
+                .toList());
         }
+
+        // 2. Process Drop-off Stops
+        if (request.getDropoffStops() != null) {
+            allStops.addAll(request.getDropoffStops().stream()
+                .map(stopReq -> createRouteStopEntity(route, stopReq, StopType.DROPOFF))
+                .toList());
+        }
+
+        route.setStops(allStops);
 
         Route savedRoute = routeRepository.save(route);
         return mapToDto(savedRoute);
     }
 
-    public List<RouteResponse> getAllRoutes() {
-        return routeRepository.findAll().stream()
+    public List<RouteResponse> getAllRoutes(UUID currentOperatorId) {
+        return routeRepository.findAllByOperatorId(currentOperatorId).stream()
             .map(this::mapToDto)
             .collect(Collectors.toList());
     }
 
-    public RouteResponse getRoute(UUID id) {
+    public RouteResponse getRoute(UUID id, UUID currentOperatorId) {
         Route route = routeRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Route not found"));
+        validateOwnership(route, currentOperatorId);
         return mapToDto(route);
     }
 
     @Transactional
-    public RouteResponse updateRoute(UUID id, RouteRequest request) {
-        Route route = routeRepository.findById(id)
+    public RouteResponse updateRoute(UUID id, RouteRequest request, UUID currentOperatorId) {
+        // 1. Fetch original route and validate ownership
+        Route oldRoute = routeRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Route not found"));
         
-        // Update basic fields
-        route.setName(request.getName());
-        route.setOrigin(request.getOrigin());
-        route.setDestination(request.getDestination());
-        route.setDistanceKm(request.getDistanceKm());
-        route.setEstimatedMinutes(request.getEstimatedMinutes());
+        validateOwnership(oldRoute, currentOperatorId);
 
-        // Update Operator if changed
-        if (!route.getOperator().getId().equals(request.getOperatorId())) {
-             Operator operator = operatorRepository.findById(request.getOperatorId())
-                .orElseThrow(() -> new ResourceNotFoundException("Operator not found"));
-             route.setOperator(operator);
+        // 2. Check if the route is linked to ANY trip (past or future)
+        // If it has trips, we MUST create a new record to preserve history
+        boolean hasTrips = tripRepository.existsByRouteId(id);
+
+        if (hasTrips) {
+            // SOFT UPDATE: Deactivate old and create new
+            oldRoute.setActive(false); // Assuming you have an 'isActive' field
+            routeRepository.save(oldRoute);
+
+            // Create the new version using your existing createRoute logic
+            return createRoute(request, currentOperatorId);
+        } else {
+            // HARD UPDATE: Safe to edit directly since no trips use it yet
+            oldRoute.setName(request.getName());
+            oldRoute.setOrigin(request.getOrigin());
+            oldRoute.setDestination(request.getDestination());
+            oldRoute.setDistanceKm(request.getDistanceKm());
+            oldRoute.setEstimatedMinutes(request.getEstimatedMinutes());
+
+            // Update stops using the clear/addAll pattern to handle orphanRemoval
+            oldRoute.getStops().clear(); 
+            
+            List<RouteStop> newStops = new ArrayList<>();
+            if (request.getPickupStops() != null) {
+                newStops.addAll(request.getPickupStops().stream()
+                    .map(s -> createRouteStopEntity(oldRoute, s, StopType.PICKUP)).toList());
+            }
+            if (request.getDropoffStops() != null) {
+                newStops.addAll(request.getDropoffStops().stream()
+                    .map(s -> createRouteStopEntity(oldRoute, s, StopType.DROPOFF)).toList());
+            }
+            oldRoute.getStops().addAll(newStops);
+
+            return mapToDto(routeRepository.save(oldRoute));
         }
-
-        // Handle Stops Update (Clear and Replace due to orphanRemoval = true)
-        if (request.getStops() != null) {
-            route.getStops().clear(); // Triggers orphan removal
-            request.getStops().forEach(stopReq -> {
-                Station station = stationRepository.findById(stopReq.getStationId())
-                        .orElseThrow(() -> new ResourceNotFoundException("Station not found"));
-                
-                route.getStops().add(RouteStop.builder()
-                        .route(route)
-                        .station(station)
-                        .type(stopReq.getType())
-                        .duration(stopReq.getDuration())
-                        .isOrigin(stopReq.isOrigin())
-                        .isDestination(stopReq.isDestination())
-                        .build());
-            });
-        }
-
-        routeRepository.save(route);
-
-        return mapToDto(route);
     }
 
-    public void deleteRoute(UUID id) {
-        if (!routeRepository.existsById(id)) throw new ResourceNotFoundException("Route not found");
-        routeRepository.deleteById(id);
+    @Transactional
+    public void deleteRoute(UUID id, UUID currentOperatorId) {
+            Route route = routeRepository.findById(id)
+                    .orElseThrow(() -> new ResourceNotFoundException("Route not found"));
+            validateOwnership(route, currentOperatorId);
+            routeRepository.delete(route);
+        }
+
+        // Helper method to reduce code duplication
+    private RouteStop createRouteStopEntity(Route route, RouteStopRequest stopReq, StopType type) {
+        Station station = stationRepository.findById(stopReq.getStationId())
+                .orElseThrow(() -> new ResourceNotFoundException("Station not found"));
+
+        return RouteStop.builder()
+                .route(route)
+                .station(station)
+                .type(type) // Explicitly set based on the list it came from
+                .duration(stopReq.getDuration())
+                .isOrigin(stopReq.isOrigin())
+                .isDestination(stopReq.isDestination())
+                .build();
     }
 
     // Helper method for mapping
@@ -154,12 +176,6 @@ public class RouteService {
                 .map(this::mapToStopDto)
                 .orElse(null);
         
-        RouteResponse.OperatorDto operator = RouteResponse.OperatorDto.builder()
-            .id(route.getOperator().getId())
-            .name(route.getOperator().getName())
-            .image(route.getOperator().getImage())
-            .build();
-
         return RouteResponse.builder()
             .id(route.getId())
             .details(DetailsDto.builder()
@@ -174,60 +190,13 @@ public class RouteService {
             .dropoffPoints(dropoffPoints)
             .from(fromDto)
             .to(toDto)
-            .operator(operator)
             .build();
     }
 
-    public RouteSearchResponse searchRoutes(RouteSearchRequest request) {
-        Pageable pageable = PageRequest.of(request.getPage(), request.getLimit());
-
-        Specification<Route> spec = (root, query, cb) -> {
-            List<Predicate> predicates = new ArrayList<>();
-
-            // Search by Name (Partial match, case-insensitive)
-            if (request.getName() != null && !request.getName().isEmpty()) {
-                predicates.add(cb.like(cb.lower(root.get("name")), "%" + request.getName().toLowerCase() + "%"));
-            }
-
-            // Filter by Origin
-            if (request.getOrigin() != null && !request.getOrigin().isEmpty()) {
-                predicates.add(cb.equal(root.get("origin"), request.getOrigin()));
-            }
-
-            // Filter by Destination
-            if (request.getDestination() != null && !request.getDestination().isEmpty()) {
-                predicates.add(cb.equal(root.get("destination"), request.getDestination()));
-            }
-
-            // Filter by Operator
-            if (request.getOperator() != null && !request.getOperator().isEmpty()) {
-                predicates.add(cb.equal(root.get("operator").get("name"), request.getOperator()));
-            }
-
-            return cb.and(predicates.toArray(new Predicate[0]));
-        };
-
-        // Execute Query
-        Page<Route> routePage = routeRepository.findAll(spec, pageable);
-
-        // Map Entities to RouteResponse List
-        List<RouteResponse> routeList = routePage.getContent().stream()
-                .map(this::mapToDto)
-                .toList();
-
-        // Build PaginationDto
-        PaginationDto pagination = PaginationDto.builder()
-                .total((int) routePage.getTotalElements())
-                .limit(routePage.getSize())
-                .page(routePage.getNumber())
-                .totalPages(routePage.getTotalPages())
-                .build();
-
-        // Return the Combined Response
-        return RouteSearchResponse.builder()
-                .routes(routeList)
-                .pagination(pagination)
-                .build();
+    private void validateOwnership(Route route, UUID currentOperatorId) {
+        if (!route.getOperator().getId().equals(currentOperatorId)) {
+            throw new RuntimeException("Access Denied: You do not own this route");
+        }
     }
 
     private RouteResponse.StopDto mapToStopDto(RouteStop stop) {

@@ -12,6 +12,4 @@ public class StationResponse {
     private String address;
     private String ward;
     private String city;
-    private UUID operatorId;
-    private String operatorName;
 }

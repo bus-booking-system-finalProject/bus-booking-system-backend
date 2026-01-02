@@ -1,7 +1,11 @@
 package com.booking.bookingService.controller;
 
+import com.booking.bookingService.dto.ApiResponse;
+import com.booking.bookingService.dto.payment.CashPaymentRequest;
 import com.booking.bookingService.service.PaymentService;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -95,6 +99,16 @@ public class PaymentController {
             ));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("success", false, "message", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/cash")
+    public ResponseEntity<?> confirmCashPayment(@Valid @RequestBody CashPaymentRequest request) {
+        try {
+            paymentService.processCashPayment(request);
+            return ResponseEntity.ok(ApiResponse.success(null, "Cash payment processed successfully"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         }
     }
 }

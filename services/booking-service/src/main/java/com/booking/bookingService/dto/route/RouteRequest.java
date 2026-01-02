@@ -7,14 +7,10 @@ import lombok.Builder;
 import lombok.Data;
 
 import java.util.List;
-import java.util.UUID;
 
 @Data
 @Builder
 public class RouteRequest {
-    @NotNull(message = "Operator ID is required")
-    private UUID operatorId;
-
     @NotNull(message = "Name is required")
     private String name;
 
@@ -30,5 +26,9 @@ public class RouteRequest {
     @Min(value = 1, message = "Estimated minutes must be positive")
     private int estimatedMinutes;
 
-    private List<RouteStopRequest> stops;
+    private List<RouteStopRequest> pickupStops;
+    private List<RouteStopRequest> dropoffStops;
+
+    @NotNull(message = "Route active status must be specified")
+    private Boolean isActive;
 }

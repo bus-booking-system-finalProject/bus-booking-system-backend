@@ -3,7 +3,6 @@ package com.booking.bookingService.model;
 import jakarta.persistence.*;
 import lombok.*;
 import java.util.UUID;
-
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 @Entity
@@ -15,9 +14,9 @@ public class Seat {
     private UUID id;
 
     @ManyToOne
-    @JoinColumn(name = "bus_id")
+    @JoinColumn(name = "bus_model_id")
     @JsonIgnore
-    private Bus bus;
+    private BusModel busModel;
 
     private String seatCode; // e.g., A1, B2
     private int gridRow;    // Vertical position (1, 2, 3...)

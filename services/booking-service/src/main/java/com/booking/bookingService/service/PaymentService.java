@@ -1,7 +1,9 @@
 package com.booking.bookingService.service;
 
+import com.booking.bookingService.dto.payment.CashPaymentRequest;
 import com.booking.bookingService.event.TicketSuccessEvent;
 import com.booking.bookingService.exception.ResourceNotFoundException;
+import com.booking.bookingService.model.CashPayment;
 import com.booking.bookingService.model.PayOSPayment;
 import com.booking.bookingService.model.Payment;
 import com.booking.bookingService.model.Ticket;
@@ -137,6 +139,56 @@ public class PaymentService {
         // Gửi email vé
         eventPublisher.publishEvent(new TicketSuccessEvent(ticket));
         log.info("Payment success processing complete for Ticket: {}", ticket.getTicketCode());
+    }
+
+    @Transactional
+    public void processCashPayment(CashPaymentRequest request) {
+        Ticket ticket = ticketRepository.findById(request.getTicketId())
+                .orElseThrow(() -> new ResourceNotFoundException("Ticket not found"));
+
+        if (ticket.getStatus() == Ticket.TicketStatus.CONFIRMED) {
+            throw new IllegalStateException("Ticket is already paid");
+        }
+
+        // Create Cash Payment
+        CashPayment payment = CashPayment.builder()
+                .ticket(ticket)
+                .amount(ticket.getTotalAmount())
+                .status(PaymentStatus.PENDING)
+                .createdAt(LocalDateTime.now())
+                .paidAt(LocalDateTime.now())
+                .build();
+        
+        paymentRepository.save(payment);
+
+        finalizeTicket(ticket);
+    }
+
+    // Shared helper to confirm ticket and update seats
+    private void finalizeTicket(Ticket ticket) {
+        if (ticket.getStatus() == Ticket.TicketStatus.CANCELLED) {
+             log.warn("Ticket {} was cancelled before payment finalization.", ticket.getTicketCode());
+             // Handle refund logic if needed
+             return;
+        }
+
+        ticket.setStatus(Ticket.TicketStatus.CONFIRMED);
+        ticket.setConfirmedAt(LocalDateTime.now());
+        ticketRepository.save(ticket);
+
+        // Update Seats to BOOKED
+        List<TripSeat> seats = tripSeatRepository.findByTripIdAndSeat_SeatCodeIn(
+                ticket.getTrip().getId(), 
+                ticket.getSeats()
+        );
+        for (TripSeat seat : seats) {
+            seat.setStatus(TripSeat.Status.BOOKED);
+        }
+        tripSeatRepository.saveAll(seats);
+
+        // Send Email
+        eventPublisher.publishEvent(new TicketSuccessEvent(ticket));
+        log.info("Ticket {} confirmed successfully.", ticket.getTicketCode());
     }
 
     public Payment getPaymentByTicketId(UUID ticketId) {

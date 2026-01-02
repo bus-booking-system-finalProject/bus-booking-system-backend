@@ -6,5 +6,5 @@ import java.util.List;
 import java.util.UUID;
 
 public interface SeatRepository extends JpaRepository<Seat, UUID> {
-    List<Seat> findByBusId(UUID busId);
+    List<Seat> findByBusModelId(UUID busModelId);
 }

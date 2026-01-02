@@ -1,6 +1,7 @@
 package com.booking.bookingService.repository;
 
 import com.booking.bookingService.model.Bus;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -14,4 +15,6 @@ public interface BusRepository extends JpaRepository<Bus, UUID> {
     
     // Tìm xe theo biển số
     // Optional<Bus> findByPlateNumber(String plateNumber);
+
+    List<Bus> findAllByOperatorId(UUID operatorId);
 }

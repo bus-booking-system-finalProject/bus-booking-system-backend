@@ -14,6 +14,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import java.util.Collection;
 import java.util.Date;
 import java.util.List;
+import java.util.UUID;
 
 @Data
 @Builder
@@ -61,6 +62,9 @@ public class User implements UserDetails {
     @Builder.Default
     private boolean enabled = true;
 
+    @Column(name = "operator_id")
+    private UUID operatorId;
+
     // --- UserDetails Methods ---
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
@@ -70,6 +74,14 @@ public class User implements UserDetails {
     @Override
     public String getUsername() {
         return this.email;
+    }
+
+    public UUID getOperatorId() {
+        return operatorId;
+    }
+
+    public void setOperatorId(UUID operatorId) {
+        this.operatorId = operatorId;
     }
 
     @Override

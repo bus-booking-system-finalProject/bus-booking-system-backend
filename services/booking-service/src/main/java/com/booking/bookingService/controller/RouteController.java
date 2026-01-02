@@ -1,8 +1,8 @@
 package com.booking.bookingService.controller;
 
+import com.booking.bookingService.annotation.CurrentOperator;
 import com.booking.bookingService.dto.ApiResponse;
 import com.booking.bookingService.dto.route.RouteRequest;
-import com.booking.bookingService.dto.route.RouteSearchRequest;
 import com.booking.bookingService.service.RouteService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -18,33 +18,42 @@ public class RouteController {
     private final RouteService routeService;
 
     @PostMapping
-    public ResponseEntity<?> createRoute(@Valid @RequestBody RouteRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(routeService.createRoute(request), "Route created successfully"));
+    public ResponseEntity<?> createRoute(
+            @Valid @RequestBody RouteRequest request,
+            @CurrentOperator UUID operatorId
+    ) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+            .body(ApiResponse.success(routeService.createRoute(request, operatorId), "Route created successfully"));
     }
 
     @GetMapping
-    public ResponseEntity<?> getAllRoutes() {
-        return ResponseEntity.ok(ApiResponse.success(routeService.getAllRoutes(), "Routes retrieved successfully"));
+    public ResponseEntity<?> getMyRoutes(@CurrentOperator UUID operatorId) {
+        return ResponseEntity.ok(ApiResponse.success(routeService.getAllRoutes(operatorId), "Routes retrieved successfully"));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<?> getRoute(@PathVariable UUID id) {
-        return ResponseEntity.ok(ApiResponse.success(routeService.getRoute(id), "Route retrieved successfully"));
+    public ResponseEntity<?> getRoute(
+            @PathVariable UUID id, 
+            @CurrentOperator UUID operatorId
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(routeService.getRoute(id, operatorId), "Route retrieved successfully"));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<?> updateRoute(@PathVariable UUID id, @Valid @RequestBody RouteRequest request) {
-        return ResponseEntity.ok(ApiResponse.success(routeService.updateRoute(id, request), "Route updated successfully"));
+    public ResponseEntity<?> updateRoute(
+            @PathVariable UUID id, 
+            @Valid @RequestBody RouteRequest request,
+            @CurrentOperator UUID operatorId
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(routeService.updateRoute(id, request, operatorId), "Route updated successfully"));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> deleteRoute(@PathVariable UUID id) {
-        routeService.deleteRoute(id);
+    public ResponseEntity<?> deleteRoute(
+            @PathVariable UUID id, 
+            @CurrentOperator UUID operatorId
+    ) {
+        routeService.deleteRoute(id, operatorId);
         return ResponseEntity.ok(ApiResponse.success(null, "Route deleted successfully"));
-    }
-
-    @GetMapping("/search")
-    public ResponseEntity<?> search(RouteSearchRequest request) {
-        return ResponseEntity.ok(ApiResponse.success(routeService.searchRoutes(request), "Routes retrieved successfully"));
     }
 }

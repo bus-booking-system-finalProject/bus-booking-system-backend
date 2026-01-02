@@ -6,24 +6,48 @@
     { "key": "op_hl", "name": "Hoàng Long", "email": "info@hoanglong.vn", "phone": "02253920920", "rating": 4.4, "image": "https://res.cloudinary.com/drtpew1th/image/upload/v1767033671/bus_operators/ewil1qgi6iix7ywlmjyy.png" },
     { "key": "op_lh", "name": "Liên Hưng", "email": "lh@lienhungbus.vn", "phone": "19002679", "rating": 4.6, "image": "https://res.cloudinary.com/drtpew1th/image/upload/v1767034004/bus_operators/srk2gnnptlvsguytcxbu.jpg" }
   ],
-  "buses": [
-    { "key": "bus_futa_01", "operatorKey": "op_futa", "model": "Hyundai Universe", "plateNumber": "51B-10001", "capacity": 34, "type": "Sleeper" },
-    { "key": "bus_futa_02", "operatorKey": "op_futa", "model": "Thaco Mobihome", "plateNumber": "51B-10002", "capacity": 34, "type": "Sleeper" },
-    { "key": "bus_futa_03", "operatorKey": "op_futa", "model": "Hyundai Universe", "plateNumber": "51B-10003", "capacity": 34, "type": "Sleeper" },
-    { "key": "bus_futa_04", "operatorKey": "op_futa", "model": "Thaco Mobihome", "plateNumber": "51B-10004", "capacity": 22, "type": "Limousine" },
+  "busModels": [
+    { "key": "model_futa_universe", "operatorKey": "op_futa", "name": "Hyundai Universe Sleeper", "description": "Standard Sleeper Bus", "capacity": 34, "type": "SLEEPER", "isLimousine": false, "hasWC": true },
+    { "key": "model_futa_mobi", "operatorKey": "op_futa", "name": "Thaco Mobihome VIP", "description": "VIP Cabin", "capacity": 22, "type": "CABIN", "isLimousine": true, "hasWC": true },
+    { "key": "model_futa_luxury_34", "operatorKey": "op_futa", "name": "Futa Limousine 34", "description": "Giường nằm cao cấp có rèm", "capacity": 34, "type": "SLEEPER", "isLimousine": true, "hasWC": true },
+    { "key": "model_futa_palace", "operatorKey": "op_futa", "name": "Futa Royal Palace", "description": "Cung điện di động 22 phòng", "capacity": 22, "type": "CABIN", "isLimousine": true, "hasWC": true },
+
+    { "key": "model_tb_sleeper", "operatorKey": "op_tb", "name": "Thaco Mobihome Standard", "description": "Giường nằm chất lượng cao", "capacity": 34, "type": "SLEEPER", "isLimousine": false, "hasWC": true },
+    { "key": "model_tb_limo", "operatorKey": "op_tb", "name": "Hyundai Solati Limousine", "description": "Phòng nằm VIP", "capacity": 22, "type": "CABIN", "isLimousine": true, "hasWC": true },
+
+    { "key": "model_kumho_sleeper", "operatorKey": "op_kumho", "name": "Samco Primas Sleeper", "description": "Giường nằm cao cấp", "capacity": 34, "type": "SLEEPER", "isLimousine": false, "hasWC": true },
     
-    { "key": "bus_tb_01", "operatorKey": "op_tb", "model": "Thaco Mobihome", "plateNumber": "50F-20001", "capacity": 34, "type": "Sleeper" },
-    { "key": "bus_tb_02", "operatorKey": "op_tb", "model": "Thaco Mobihome", "plateNumber": "50F-20002", "capacity": 34, "type": "Sleeper" },
-    { "key": "bus_tb_03", "operatorKey": "op_tb", "model": "Hyundai Universe", "plateNumber": "50F-20003", "capacity": 22, "type": "Limousine" },
+    { "key": "model_hl_seater", "operatorKey": "op_hl", "name": "Daewoo Seater", "description": "Ghế ngồi mềm", "capacity": 40, "type": "SEATER", "isLimousine": false, "hasWC": false },
+    { "key": "model_hl_sleeper", "operatorKey": "op_hl", "name": "Daewoo Sleeper", "description": "Giường nằm", "capacity": 38, "type": "SLEEPER", "isLimousine": false, "hasWC": true },
 
-    { "key": "bus_kumho_01", "operatorKey": "op_kumho", "model": "Samco Primas", "plateNumber": "53S-30001", "capacity": 34, "type": "Sleeper" },
-    { "key": "bus_kumho_02", "operatorKey": "op_kumho", "model": "Samco Primas", "plateNumber": "53S-30002", "capacity": 34, "type": "Sleeper" },
+    { "key": "model_lh_sleeper", "operatorKey": "op_lh", "name": "Kia Granbird", "description": "Giường nằm cao cấp", "capacity": 34, "type": "SLEEPER", "isLimousine": true, "hasWC": true }
+  ],
+  "buses": [
+    { "key": "bus_futa_01", "operatorKey": "op_futa", "modelKey": "model_futa_universe", "plateNumber": "51B-10001" },
+    { "key": "bus_futa_02", "operatorKey": "op_futa", "modelKey": "model_futa_universe", "plateNumber": "51B-10002" },
+    { "key": "bus_futa_03", "operatorKey": "op_futa", "modelKey": "model_futa_universe", "plateNumber": "51B-10003" },
+    { "key": "bus_futa_04", "operatorKey": "op_futa", "modelKey": "model_futa_mobi", "plateNumber": "51B-10004" },
+    
+    { "key": "bus_futa_05", "operatorKey": "op_futa", "modelKey": "model_futa_luxury_34", "plateNumber": "51B-10005" },
+    { "key": "bus_futa_06", "operatorKey": "op_futa", "modelKey": "model_futa_luxury_34", "plateNumber": "51B-10006" },
+    { "key": "bus_futa_07", "operatorKey": "op_futa", "modelKey": "model_futa_luxury_34", "plateNumber": "51B-10007" },
+    
+    { "key": "bus_futa_08", "operatorKey": "op_futa", "modelKey": "model_futa_palace", "plateNumber": "51B-10008" },
+    { "key": "bus_futa_09", "operatorKey": "op_futa", "modelKey": "model_futa_palace", "plateNumber": "51B-10009" },
+    { "key": "bus_futa_10", "operatorKey": "op_futa", "modelKey": "model_futa_palace", "plateNumber": "51B-10010" },
+    
+    { "key": "bus_tb_01", "operatorKey": "op_tb", "modelKey": "model_tb_sleeper", "plateNumber": "50F-20001" },
+    { "key": "bus_tb_02", "operatorKey": "op_tb", "modelKey": "model_tb_sleeper", "plateNumber": "50F-20002" },
+    { "key": "bus_tb_03", "operatorKey": "op_tb", "modelKey": "model_tb_limo", "plateNumber": "50F-20003" },
 
-    { "key": "bus_hl_01", "operatorKey": "op_hl", "model": "Daewoo", "plateNumber": "15B-40001", "capacity": 40, "type": "Standard" },
-    { "key": "bus_hl_02", "operatorKey": "op_hl", "model": "Daewoo", "plateNumber": "15B-40002", "capacity": 38, "type": "Sleeper" },
+    { "key": "bus_kumho_01", "operatorKey": "op_kumho", "modelKey": "model_kumho_sleeper", "plateNumber": "53S-30001" },
+    { "key": "bus_kumho_02", "operatorKey": "op_kumho", "modelKey": "model_kumho_sleeper", "plateNumber": "53S-30002" },
 
-    { "key": "bus_lh_01", "operatorKey": "op_lh", "model": "Kia Granbird", "plateNumber": "79B-50001", "capacity": 34, "type": "Sleeper" },
-    { "key": "bus_lh_02", "operatorKey": "op_lh", "model": "Kia Granbird", "plateNumber": "79B-50002", "capacity": 34, "type": "Sleeper" }
+    { "key": "bus_hl_01", "operatorKey": "op_hl", "modelKey": "model_hl_seater", "plateNumber": "15B-40001" },
+    { "key": "bus_hl_02", "operatorKey": "op_hl", "modelKey": "model_hl_sleeper", "plateNumber": "15B-40002" },
+
+    { "key": "bus_lh_01", "operatorKey": "op_lh", "modelKey": "model_lh_sleeper", "plateNumber": "79B-50001" },
+    { "key": "bus_lh_02", "operatorKey": "op_lh", "modelKey": "model_lh_sleeper", "plateNumber": "79B-50002" }
   ],
   "stations": [
     { "key": "st_futa_bxmt", "operatorKey": "op_futa", "name": "Bến Xe Miền Tây", "address": "395 Kinh Dương Vương", "ward": "An Lạc", "city": "Hồ Chí Minh" },

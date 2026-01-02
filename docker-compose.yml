@@ -109,6 +109,9 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    depends_on:
+      booking-service:
+        condition: service_healthy
     environment:
       - SPRING_PROFILES_ACTIVE=${ACTIVE_PROFILE}
       - EMAIL_PASSWORD=${EMAIL_PASSWORD}

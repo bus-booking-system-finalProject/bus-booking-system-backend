@@ -15,4 +15,6 @@ public interface RouteRepository extends JpaRepository<Route, UUID>, JpaSpecific
     
     // Tìm tất cả tuyến của một nhà xe
     List<Route> findByOperatorId(UUID operatorId);
+
+    List<Route> findAllByOperatorId(UUID operatorId);
 }

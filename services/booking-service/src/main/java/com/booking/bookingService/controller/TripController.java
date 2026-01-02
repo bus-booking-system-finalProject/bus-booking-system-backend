@@ -1,5 +1,6 @@
 package com.booking.bookingService.controller;
 
+import com.booking.bookingService.annotation.CurrentOperator;
 import com.booking.bookingService.dto.ApiResponse;
 import com.booking.bookingService.dto.ticket.SeatMapResponse;
 import com.booking.bookingService.dto.trip.TripRequest;
@@ -28,23 +29,42 @@ public class TripController {
     private final TripService tripService;
     private final SearchLogService searchLogService;
 
+    // --- OPERATOR ENDPOINTS (Protected) ---
+
     @PostMapping
-    public ResponseEntity<?> createTrip(@Valid @RequestBody TripRequest request) {
-        Trip trip = tripService.createTrip(request);
+    public ResponseEntity<?> createTrip(
+            @Valid @RequestBody TripRequest request,
+            @CurrentOperator UUID operatorId
+    ) {
+        Trip trip = tripService.createTrip(request, operatorId);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(trip, "Trip created successfully"));
     }
 
     @PutMapping("/{tripId}")
-    public ResponseEntity<?> updateTrip(@PathVariable UUID tripId, @Valid @RequestBody TripRequest request) {
-        Trip trip = tripService.updateTrip(tripId, request);
+    public ResponseEntity<?> updateTrip(
+            @PathVariable UUID tripId, 
+            @Valid @RequestBody TripRequest request,
+            @CurrentOperator UUID operatorId
+    ) {
+        Trip trip = tripService.updateTrip(tripId, request, operatorId);
         return ResponseEntity.ok(ApiResponse.success(trip, "Trip updated successfully"));
     }
 
     @DeleteMapping("/{tripId}")
-    public ResponseEntity<?> deleteTrip(@PathVariable UUID tripId) {
-        tripService.deleteTrip(tripId);
+    public ResponseEntity<?> deleteTrip(
+            @PathVariable UUID tripId,
+            @CurrentOperator UUID operatorId
+    ) {
+        tripService.deleteTrip(tripId, operatorId);
         return ResponseEntity.ok(ApiResponse.success(null, "Trip deleted successfully"));
     }
+
+    @GetMapping("/me")
+    public ResponseEntity<?> getMyTrips(@CurrentOperator UUID operatorId) {
+        return ResponseEntity.ok(ApiResponse.success(tripService.getOperatorTrips(operatorId), "Trips retrieved successfully"));
+    }
+
+    // --- PUBLIC ENDPOINTS (Customers) ---
 
     @GetMapping("/search")
     public ResponseEntity<Map<String, Object>> searchTrips(

@@ -1,5 +1,6 @@
 package com.booking.bookingService.service;
 
+import com.booking.bookingService.Enum.BusType;
 import com.booking.bookingService.Enum.StopType;
 import com.booking.bookingService.dto.ticket.SeatMapResponse;
 import com.booking.bookingService.dto.trip.TripRequest;
@@ -18,9 +19,11 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -36,94 +39,97 @@ public class TripService {
     private final FeedbackRepository feedbackRepository;
     private final RedisLockService redisLockService;
 
-    public Trip createTrip(TripRequest request) {
-        validateBusAvailability(request.getBusId(), request.getDepartureTime(), request.getArrivalTime(), null);
+    @Transactional
+    public Trip createTrip(TripRequest request, UUID currentOperatorId) {
+        // 1. Validate Bus Ownership
         Bus bus = busRepository.findById(request.getBusId())
                 .orElseThrow(() -> new ResourceNotFoundException("Bus not found"));
+        if (!bus.getOperator().getId().equals(currentOperatorId)) {
+            throw new IllegalArgumentException("Invalid Bus: You do not own this bus.");
+        }
+
+        // 2. Validate Route Ownership
         Route route = routeRepository.findById(request.getRouteId())
                 .orElseThrow(() -> new ResourceNotFoundException("Route not found"));
+        if (!route.getOperator().getId().equals(currentOperatorId)) {
+            throw new IllegalArgumentException("Invalid Route: You do not own this route.");
+        }
 
-        // Ensure Bus belongs to Operator of Route (optional business rule, but good
-        // practice)
-        // For now, we assume flexible assignment or strict check:
-        // if (!bus.getOperator().getId().equals(route.getOperator().getId())) ...
+        // 3. Check Availability
+        validateBusAvailability(request.getBusId(), request.getDepartureTime(), request.getArrivalTime(), null);
 
-        // if request.discountPrice is null, then set discountPrice to -1
         BigDecimal discount = request.getDiscountPrice() != null ? request.getDiscountPrice() : BigDecimal.ONE.negate();
 
         Trip trip = Trip.builder()
                 .bus(bus)
                 .route(route)
-                .operator(bus.getOperator()) // Inherit operator from Bus
+                .operator(bus.getOperator()) // Guaranteed to be currentOperator
                 .departureTime(request.getDepartureTime())
                 .originalPrice(request.getOriginalPrice())
                 .discountPrice(discount)
                 .status(Trip.TripStatus.SCHEDULED)
-                .availableSeats(bus.getSeatCapacity())
+                .availableSeats(bus.getModel().getSeatCapacity())
                 .build();
 
         Trip savedTrip = tripRepository.save(trip);
-
-        // Initialize Seat Statuses
-        List<Seat> physicalSeats = seatRepository.findByBusId(bus.getId());
-        List<TripSeat> statuses = physicalSeats.stream().map(seat -> TripSeat.builder()
-                .trip(savedTrip)
-                .seat(seat)
-                .status(TripSeat.Status.AVAILABLE)
-                .build()).collect(Collectors.toList());
-
-        seatStatusRepository.saveAll(statuses);
-
         initializeSeatsForTrip(savedTrip, bus);
 
-        return trip;
+        return savedTrip;
     }
 
-    // --- Update Trip ---
-    public Trip updateTrip(UUID tripId, TripRequest request) {
-        validateBusAvailability(request.getBusId(), request.getDepartureTime(), request.getArrivalTime(), tripId);
+    @Transactional
+    public Trip updateTrip(UUID tripId, TripRequest request, UUID currentOperatorId) {
         Trip trip = tripRepository.findById(tripId)
                 .orElseThrow(() -> new ResourceNotFoundException("Trip not found"));
 
+        // 1. Security Check
+        validateOwnership(trip, currentOperatorId);
+
+        // 2. Check Bus/Route consistency
         Bus bus = busRepository.findById(request.getBusId())
                 .orElseThrow(() -> new ResourceNotFoundException("Bus not found"));
+        if (!bus.getOperator().getId().equals(currentOperatorId)) throw new IllegalArgumentException("Invalid Bus");
+
         Route route = routeRepository.findById(request.getRouteId())
                 .orElseThrow(() -> new ResourceNotFoundException("Route not found"));
+        if (!route.getOperator().getId().equals(currentOperatorId)) throw new IllegalArgumentException("Invalid Route");
+
+        // 3. Update
+        validateBusAvailability(request.getBusId(), request.getDepartureTime(), request.getArrivalTime(), tripId);
 
         trip.setBus(bus);
         trip.setRoute(route);
-        trip.setOperator(bus.getOperator());
         trip.setDepartureTime(request.getDepartureTime());
         trip.setOriginalPrice(request.getOriginalPrice());
         trip.setDiscountPrice(request.getDiscountPrice() != null ? request.getDiscountPrice() : BigDecimal.ONE.negate());
-
+        
         if (request.getStatus() != null) {
-            try {
-                trip.setStatus(Trip.TripStatus.valueOf(request.getStatus()));
-            } catch (IllegalArgumentException e) {
-                // Ignore or throw invalid status exception
-            }
+            trip.setStatus(Trip.TripStatus.valueOf(request.getStatus()));
         }
 
-        tripRepository.save(trip);
-
-        // NOTE: If bus changes, we technically need to regenerate SeatStatuses.
-        // This complexity is omitted for brevity but important in production.
-
-        return trip;
+        return tripRepository.save(trip);
     }
 
     // --- Delete Trip ---
-    public void deleteTrip(UUID tripId) {
+    @Transactional
+    public void deleteTrip(UUID tripId, UUID currentOperatorId) {
         Trip trip = tripRepository.findById(tripId)
                 .orElseThrow(() -> new ResourceNotFoundException("Trip not found"));
 
-        // Soft delete (Cancel) or Hard delete?
-        // Let's do hard delete for CRUD simplicity, but clean up child records first
+        validateOwnership(trip, currentOperatorId);
+
         List<TripSeat> statuses = seatStatusRepository.findByTripId(tripId);
         seatStatusRepository.deleteAll(statuses);
 
         tripRepository.delete(trip);
+    }
+
+    // Get Operator's own trips
+    public List<TripSearchResponse> getOperatorTrips(UUID currentOperatorId) {
+        // Ensure you add `findAllByOperatorId` to TripRepository
+        return tripRepository.findAllByOperatorId(currentOperatorId).stream()
+                .map(this::mapToTripResponse)
+                .collect(Collectors.toList());
     }
 
     private Specification<Trip> sortByEffectivePriceAsc() {
@@ -151,8 +157,8 @@ public class TripService {
 
             // Joins
             var routeJoin = root.join("route");
-            var busJoin = root.join("bus");
             var operatorJoin = root.join("operator");
+            var modelJoin = root.join("busModel");
 
             Expression<BigDecimal> effectivePrice = criteriaBuilder.selectCase()
                 .when(criteriaBuilder.greaterThan(root.get("discountPrice"), BigDecimal.ONE.negate()), root.get("discountPrice"))
@@ -175,13 +181,6 @@ public class TripService {
                         destPattern));
             }
 
-            // 3. Date (Specific Day)
-            if (request.getDate() != null) {
-                LocalDateTime startOfDay = request.getDate().atStartOfDay();
-                LocalDateTime endOfDay = request.getDate().plusDays(1).atStartOfDay().minusMinutes(1);
-                predicates.add(criteriaBuilder.between(root.get("departureTime"), startOfDay, endOfDay));
-            }
-
             // 4. Passenger Capacity (using new availableSeats field)
             if (request.getPassengers() != null && request.getPassengers() > 0) {
                 predicates.add(criteriaBuilder.greaterThanOrEqualTo(
@@ -191,17 +190,24 @@ public class TripService {
 
             // 5. Bus Type (using new type field on Bus)
             if (request.getBusTypes() != null && !request.getBusTypes().isEmpty()) {
-                // Convert list to lowercase to match DB (if DB stores 'sleeper', 'limousine',
-                // etc.)
-                List<String> types = request.getBusTypes().stream()
-                        .map(String::toLowerCase)
+                List<BusType> types = request.getBusTypes().stream()
+                        .map(String::toUpperCase)
+                        .map(BusType::valueOf)
                         .collect(Collectors.toList());
-
-                // Use IN clause
-                predicates.add(criteriaBuilder.lower(busJoin.get("type")).in(types));
+                predicates.add(modelJoin.get("type").in(types));
+            }
+            // 6. Filter by Limousine status
+            // Pass a boolean in your request DTO to trigger this
+            if (request.getIsLimousine() != null) {
+                predicates.add(criteriaBuilder.equal(modelJoin.get("isLimousine"), request.getIsLimousine()));
             }
 
-            // 6. Price Range (using new price field)
+            // 7. Filter by WC availability
+            if (request.getHasWC() != null) {
+                predicates.add(criteriaBuilder.equal(modelJoin.get("hasWC"), request.getHasWC()));
+            }
+
+            // 8. Price Range (using new price field)
             if (request.getMinPrice() != null) {
                 predicates.add(criteriaBuilder.greaterThanOrEqualTo(
                         effectivePrice,
@@ -213,28 +219,42 @@ public class TripService {
                         request.getMaxPrice()));
             }
 
-            // 7. Operators
+            // 9. Operators
             if (request.getOperators() != null && !request.getOperators().isEmpty()) {
                 predicates.add(operatorJoin.get("name").in(request.getOperators()));
             }
 
-            // 8. Departure Time Slots
-            if (request.getDate() != null
-                    && (request.getMinDepartureTime() != null || request.getMaxDepartureTime() != null)) {
-                LocalDateTime baseDate = request.getDate().atStartOfDay();
+            // 10. Departure Time Slots
+            // ALWAYS enforce the "30-minute from now" rule
+            LocalDateTime cutoffTime = LocalDateTime.now().plusMinutes(30);
 
-                LocalDateTime start = request.getMinDepartureTime() != null
-                        ? baseDate.with(request.getMinDepartureTime())
-                        : baseDate; // Default to start of day if min not specified
+            if (request.getDate() != null) {
+                // Determine the window for the specific day requested
+                LocalDateTime dayStart = request.getDate().atStartOfDay();
+                LocalDateTime dayEnd = request.getDate().atTime(LocalTime.MAX);
 
-                LocalDateTime end = request.getMaxDepartureTime() != null
-                        ? baseDate.with(request.getMaxDepartureTime())
-                        : baseDate.plusDays(1).minusNanos(1); // Default to end of day if max not specified
+                // If user provided specific hours (min/max), narrow the window
+                LocalDateTime searchStart = (request.getMinDepartureTime() != null) 
+                                            ? request.getDate().atTime(request.getMinDepartureTime()) 
+                                            : dayStart;
+                
+                LocalDateTime searchEnd = (request.getMaxDepartureTime() != null) 
+                                        ? request.getDate().atTime(request.getMaxDepartureTime()) 
+                                        : dayEnd;
 
-                predicates.add(criteriaBuilder.between(
-                        root.get("departureTime"),
-                        start,
-                        end));
+                // The actual start must be the LATER of (Search Start) vs (Now + 30m)
+                LocalDateTime finalStart = searchStart.isBefore(cutoffTime) ? cutoffTime : searchStart;
+
+                // Only add if the window is still valid
+                if (finalStart.isBefore(searchEnd)) {
+                    predicates.add(criteriaBuilder.between(root.get("departureTime"), finalStart, searchEnd));
+                } else {
+                    // If the requested time has already passed (+ 30m buffer), return nothing
+                    predicates.add(criteriaBuilder.disjunction()); 
+                }
+            } else {
+                // If no date is selected, just ensure we don't show past trips
+                predicates.add(criteriaBuilder.greaterThan(root.get("departureTime"), cutoffTime));
             }
 
             return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
@@ -281,7 +301,7 @@ public class TripService {
                 .orElseThrow(() -> new ResourceNotFoundException("Trip not found"));
 
         // 1. Get all physical seats
-        List<Seat> physicalSeats = seatRepository.findByBusId(trip.getBus().getId());
+        List<Seat> physicalSeats = seatRepository.findByBusModelId(trip.getBus().getModel().getId());
 
         // 2. Get current statuses from DB
         List<TripSeat> seatStatuses = seatStatusRepository.findByTripId(tripId);
@@ -339,6 +359,22 @@ public class TripService {
                 .totalDecks(totalDecks)
                 .seats(seatDtos)
                 .build();
+    }
+
+    @Transactional
+    public void assignBusToTrip(UUID tripId, UUID busId, UUID operatorId) {
+        Trip trip = tripRepository.findById(tripId).orElseThrow(() -> new ResourceNotFoundException("Trip not found"));
+        validateOwnership(trip, operatorId);
+        
+        Bus bus = busRepository.findById(busId).orElseThrow(() -> new ResourceNotFoundException("Bus not found"));
+        
+        // VALIDATION: Physical bus must match the Trip's BusType
+        if (!bus.getModel().getId().equals(trip.getBusModel().getId())) {
+            throw new IllegalArgumentException("Bus Type mismatch! This trip requires: " + trip.getBusModel().getName());
+        }
+        
+        trip.setBus(bus);
+        tripRepository.save(trip);
     }
 
     // --- Helper Mapper ---
@@ -401,8 +437,8 @@ public class TripService {
                 .from(fromStopDto)
                 .to(toStopDto)
                 .bus(TripSearchResponse.BusDto.builder()
-                        .model(trip.getBus().getModel())
-                        .type(trip.getBus().getType())
+                        .model(trip.getBus().getModel().getName())
+                        .type(trip.getBus().getModel().getTypeDisplay())
                         .build())
                 .schedules(scheduleDto)
                 .pricing(TripSearchResponse.PricingDto.builder()
@@ -410,7 +446,7 @@ public class TripService {
                         .discount(trip.getDiscountPrice())
                         .build())
                 .availability(TripSearchResponse.AvailabilityDto.builder()
-                        .totalSeats(trip.getBus().getSeatCapacity())
+                        .totalSeats(trip.getBus().getModel().getSeatCapacity())
                         .availableSeats(trip.getAvailableSeats())
                         .build())
                 .build();
@@ -439,7 +475,7 @@ public class TripService {
 
     // --- Helper: Initialize Seats ---
     private void initializeSeatsForTrip(Trip trip, Bus bus) {
-        List<Seat> physicalSeats = seatRepository.findByBusId(bus.getId());
+        List<Seat> physicalSeats = seatRepository.findByBusModelId(bus.getModel().getId());
         List<TripSeat> statuses = physicalSeats.stream().map(seat -> TripSeat.builder()
                 .trip(trip)
                 .seat(seat)
@@ -447,5 +483,12 @@ public class TripService {
                 .build()).collect(Collectors.toList());
 
         seatStatusRepository.saveAll(statuses);
+    }
+
+    // --- Security Helper ---
+    private void validateOwnership(Trip trip, UUID currentOperatorId) {
+        if (!trip.getOperator().getId().equals(currentOperatorId)) {
+            throw new RuntimeException("Access Denied: You do not own this trip");
+        }
     }
 }
