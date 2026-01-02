@@ -21,6 +21,8 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -36,6 +38,7 @@ import java.util.stream.Collectors;
 public class TicketService {
 
     private final RedisLockService redisLockService;
+    private final SocketIOService socketIOService;
     private final TripSeatRepository seatStatusRepository;
     private final TripRepository tripRepository;
     private final TicketRepository ticketRepository;
@@ -63,12 +66,13 @@ public class TicketService {
             // 2. Redis Locking Process
             for (String seatCode : request.getSeats()) {
                 String key = generateSeatLockKey(request.getTripId(), seatCode);
-                
+
                 // Cố gắng lock
                 boolean acquired = redisLockService.tryLock(key, lockOwnerId, LOCK_TIMEOUT_SECONDS);
-                
+
                 if (!acquired) {
-                    // Nếu không lock được, kiểm tra xem có phải chính mình đang lock không (trường hợp F5 lại)
+                    // Nếu không lock được, kiểm tra xem có phải chính mình đang lock không (trường
+                    // hợp F5 lại)
                     String currentOwner = redisLockService.getLockOwner(key);
                     if (!lockOwnerId.equals(currentOwner)) {
                         throw new IllegalStateException("Seat " + seatCode + " is being held by another user.");
@@ -81,6 +85,14 @@ public class TicketService {
 
             // 3. Update Database Status -> LOCKED
             updateSeatStatusInDb(request.getTripId(), request.getSeats(), TripSeat.Status.LOCKED);
+
+            // Đăng ký gửi socket sau khi commit thành công
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    socketIOService.broadcastSeatUpdate(request.getTripId(), request.getSeats(), "locked");
+                }
+            });
 
         } catch (Exception e) {
             // Rollback: Nếu lỗi, nhả các ghế đã lỡ lock trong Redis
@@ -110,6 +122,9 @@ public class TicketService {
 
         // Update Database Status -> AVAILABLE (Chỉ revert nếu chưa bán)
         revertSeatStatusToAvailable(request.getTripId(), request.getSeats());
+
+        // Broadcast that seats are now AVAILABLE
+        socketIOService.broadcastSeatUpdate(request.getTripId(), request.getSeats(), "available");
     }
 
     // =================================================================
@@ -132,13 +147,14 @@ public class TicketService {
                 .orElseThrow(() -> new ResourceNotFoundException("Invalid Dropoff ID"));
 
         // Validate stops belong to this trip
-        if (!pickupStop.getRoute().getId().equals(trip.getRoute().getId()) || 
-            !dropoffStop.getRoute().getId().equals(trip.getRoute().getId())) {
-                throw new IllegalArgumentException("Selected stops do not belong to this trip's route");
+        if (!pickupStop.getRoute().getId().equals(trip.getRoute().getId()) ||
+                !dropoffStop.getRoute().getId().equals(trip.getRoute().getId())) {
+            throw new IllegalArgumentException("Selected stops do not belong to this trip's route");
         }
 
         int updatedRows = tripRepository.decrementAvailableSeats(trip.getId(), request.getSeats().size());
-        if (updatedRows == 0) throw new IllegalStateException("Not enough seats available");
+        if (updatedRows == 0)
+            throw new IllegalStateException("Not enough seats available");
         trip.setAvailableSeats(trip.getAvailableSeats() - request.getSeats().size());
 
         // Cập nhật lại object trip trong memory để hiển thị đúng (dù DB đã trừ rồi)
@@ -190,9 +206,10 @@ public class TicketService {
     // =================================================================
     // UTILITIES & HELPERS
     // =================================================================
-    
+
     // API này dùng để lấy danh sách ghế hiển thị lên UI
-    // Nó bao gồm logic "Lazy Sync": Nếu Redis hết hạn mà DB vẫn Locked -> Reset về Available
+    // Nó bao gồm logic "Lazy Sync": Nếu Redis hết hạn mà DB vẫn Locked -> Reset về
+    // Available
     @Transactional
     public List<TripSeat> getTripSeatsAndSync(UUID tripId) {
         List<TripSeat> seats = seatStatusRepository.findByTripId(tripId);
@@ -284,13 +301,13 @@ public class TicketService {
 
         // Security check if needed
         if (userEmail != null && !userEmail.equals(ticket.getUserEmail())) {
-             // throw exception
+            // throw exception
             throw new ResourceNotFoundException("Ticket not found");
         }
-        
+
         // Lazy Check Expired
-        if (ticket.getStatus() == Ticket.TicketStatus.PENDING && 
-            ticket.getLockedUntil().isBefore(LocalDateTime.now())) {
+        if (ticket.getStatus() == Ticket.TicketStatus.PENDING &&
+                ticket.getLockedUntil().isBefore(LocalDateTime.now())) {
             expireTicketNow(ticket);
         }
 
@@ -323,7 +340,8 @@ public class TicketService {
         // Release ghế cụ thể (bảng SeatAllocation hoặc tương tự)
         releaseSeats(ticket.getTrip().getId(), ticket.getSeats());
 
-        // [CONCURRENCY FIX] Update số lượng ghế trực tiếp trong DB để tránh Race Condition
+        // [CONCURRENCY FIX] Update số lượng ghế trực tiếp trong DB để tránh Race
+        // Condition
         // Thay vì get/set, hãy viết hàm custom trong Repository
         tripRepository.incrementAvailableSeats(ticket.getTrip().getId(), ticket.getSeats().size());
 
@@ -333,9 +351,10 @@ public class TicketService {
 
         // CHỈ hoàn tiền nếu vé ĐÃ ĐƯỢC CONFIRM (Đã thanh toán)
         if (ticket.getStatus() == Ticket.TicketStatus.CONFIRMED) {
-            // Có thể check thêm request.isRequestRefund() nếu muốn user xác nhận việc hoàn tiền
+            // Có thể check thêm request.isRequestRefund() nếu muốn user xác nhận việc hoàn
+            // tiền
             refundAmount = ticket.getTotalAmount().multiply(BigDecimal.valueOf(0.8));
-            
+
             // TODO: Gọi Payment Service/Gateway để thực hiện refund thực tế tại đây
             // paymentService.refund(ticket.getPaymentId(), refundAmount);
 
@@ -367,12 +386,14 @@ public class TicketService {
                 .build();
     }
 
-    public Page<TicketHistoryResponse> getUserTickets(String userEmail, String statusStr, LocalDate fromDate, LocalDate toDate, Pageable pageable) {
+    public Page<TicketHistoryResponse> getUserTickets(String userEmail, String statusStr, LocalDate fromDate,
+            LocalDate toDate, Pageable pageable) {
         Ticket.TicketStatus statusTemp = null;
         if (statusStr != null && !statusStr.isEmpty()) {
             try {
                 statusTemp = Ticket.TicketStatus.valueOf(statusStr.toUpperCase());
-            } catch (IllegalArgumentException e) { /* ignore */ }
+            } catch (IllegalArgumentException e) {
+                /* ignore */ }
         }
         final Ticket.TicketStatus status = statusTemp;
 
@@ -381,7 +402,7 @@ public class TicketService {
 
         Specification<Ticket> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
-            
+
             // Luôn filter theo userEmail
             predicates.add(cb.equal(root.get("userEmail"), userEmail));
 
@@ -396,12 +417,13 @@ public class TicketService {
             if (toDateTime != null) {
                 predicates.add(cb.lessThanOrEqualTo(root.get("createdAt"), toDateTime));
             }
-            
+
             return cb.and(predicates.toArray(new Predicate[0]));
         };
 
         // 4. Gọi Repository
-        // Nhờ @EntityGraph ở Repository, lệnh này sẽ load luôn Trip/Route/Operator trong 1 query
+        // Nhờ @EntityGraph ở Repository, lệnh này sẽ load luôn Trip/Route/Operator
+        // trong 1 query
         return ticketRepository.findAll(spec, pageable).map(this::mapToHistoryResponse);
     }
 
@@ -413,7 +435,7 @@ public class TicketService {
         statuses.forEach(s -> s.setStatus(TripSeat.Status.AVAILABLE));
         seatStatusRepository.saveAll(statuses);
     }
-    
+
     private void expireTicketNow(Ticket ticket) {
         ticket.setStatus(Ticket.TicketStatus.CANCELLED);
         ticket.setCancelledAt(LocalDateTime.now());
@@ -437,25 +459,24 @@ public class TicketService {
                 .seats(ticket.getSeats())
                 .tripDetails(TicketDetailResponse.TripDetailsDto.builder()
                         .tripId(ticket.getTrip().getId())
-                        .route(ticket.getTrip().getRoute().getOrigin() + " → " + ticket.getTrip().getRoute().getDestination())
+                        .route(ticket.getTrip().getRoute().getOrigin() + " → "
+                                + ticket.getTrip().getRoute().getDestination())
                         .operator(ticket.getTrip().getOperator().getName())
                         .departureTime(ticket.getTrip().getDepartureTime())
                         .arrivalTime(ticket.getTrip().getArrivalTime())
                         .duration(ticket.getTrip().getRoute().getEstimatedMinutes())
                         .from(TicketDetailResponse.StopDto.builder()
-                            .stopId(ticket.getPickupRouteStop().getId())
-                            .name(ticket.getPickupRouteStop().getStation().getName())
-                            .address(ticket.getPickupRouteStop().getFullAddress())
-                            .time(ticket.getPickupTime())
-                            .build()
-                        )
+                                .stopId(ticket.getPickupRouteStop().getId())
+                                .name(ticket.getPickupRouteStop().getStation().getName())
+                                .address(ticket.getPickupRouteStop().getFullAddress())
+                                .time(ticket.getPickupTime())
+                                .build())
                         .to(TicketDetailResponse.StopDto.builder()
-                            .stopId(ticket.getDropoffRouteStop().getId())
-                            .name(ticket.getDropoffRouteStop().getStation().getName())
-                            .address(ticket.getDropoffRouteStop().getFullAddress())
-                            .time(ticket.getDropoffTime())
-                            .build()
-                        )
+                                .stopId(ticket.getDropoffRouteStop().getId())
+                                .name(ticket.getDropoffRouteStop().getStation().getName())
+                                .address(ticket.getDropoffRouteStop().getFullAddress())
+                                .time(ticket.getDropoffTime())
+                                .build())
                         .build())
                 .pricing(TicketDetailResponse.PricingDto.builder()
                         .total(ticket.getTotalAmount())
@@ -473,7 +494,8 @@ public class TicketService {
                 .createdAt(ticket.getCreatedAt())
                 .seats(ticket.getSeats())
                 .trip(TicketHistoryResponse.TripSummaryDto.builder()
-                        .route(ticket.getTrip().getRoute().getOrigin() + " → " + ticket.getTrip().getRoute().getDestination())
+                        .route(ticket.getTrip().getRoute().getOrigin() + " → "
+                                + ticket.getTrip().getRoute().getDestination())
                         .departureTime(ticket.getTrip().getDepartureTime())
                         .operator(ticket.getTrip().getOperator().getName())
                         .build())
@@ -481,7 +503,9 @@ public class TicketService {
     }
 
     /**
-     * Finds a guest booking using a unique reference code and verification value (phone or email).
+     * Finds a guest booking using a unique reference code and verification value
+     * (phone or email).
+     * 
      * @param request The guest lookup request DTO.
      * @return Aggregated TicketResponse for the booking.
      */
@@ -496,10 +520,11 @@ public class TicketService {
 
         // 2. Perform verification (Security Check)
         boolean verified = verification.equalsIgnoreCase(representativeTicket.getContactEmail()) ||
-                           verification.equalsIgnoreCase(representativeTicket.getContactPhone());
+                verification.equalsIgnoreCase(representativeTicket.getContactPhone());
 
         if (representativeTicket.getUserEmail() != null) {
-            throw new ForbiddenException("This booking belongs to a registered user and must be retrieved via the user portal.");
+            throw new ForbiddenException(
+                    "This booking belongs to a registered user and must be retrieved via the user portal.");
         }
 
         if (!verified) {
@@ -507,13 +532,14 @@ public class TicketService {
         }
 
         // 3. Aggregate all tickets sharing this reference
-        // (Assuming future support for split tickets, or simply finding the single ticket by unique code)
+        // (Assuming future support for split tickets, or simply finding the single
+        // ticket by unique code)
         List<Ticket> allTickets = ticketRepository.findAll().stream()
                 .filter(t -> reference.equals(t.getTicketCode()))
                 .collect(Collectors.toList());
 
         if (allTickets.isEmpty()) {
-             throw new ResourceNotFoundException("No tickets found for booking reference: " + reference);
+            throw new ResourceNotFoundException("No tickets found for booking reference: " + reference);
         }
 
         // 4. Pass the LIST to the mapper (Fixes the error)
@@ -546,12 +572,12 @@ public class TicketService {
                 .contactEmail(representative.getContactEmail())
                 .contactPhone(representative.getContactPhone())
                 .createdAt(representative.getCreatedAt())
-                
+
                 .pricing(TicketLookupResponse.PricingDto.builder()
                         .total(totalAmount)
                         .currency("VND")
                         .build())
-                
+
                 .tripDetails(TicketLookupResponse.TripDetailsDto.builder()
                         .tripId(trip.getId())
                         .route(routeName)
