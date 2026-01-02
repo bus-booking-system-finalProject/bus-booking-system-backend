@@ -128,18 +128,18 @@ public class TripService {
     }
 
     // Helper method to get status change message
-private String getStatusChangeMessage(Trip.TripStatus status) {
-    switch (status) {
-        case DELAYED:
-            return "The trip has been delayed. Please check the new departure time.";
-        case CANCELLED:
-            return "The trip has been cancelled. Please contact the hotline for a refund.";
-        case COMPLETED:
-            return "The trip has been completed. Thank you for using our service!";
-        default:
-            return "The trip status has been updated.";
+    private String getStatusChangeMessage(Trip.TripStatus status) {
+        switch (status) {
+            case DELAYED:
+                return "The trip has been delayed. Please check the new departure time.";
+            case CANCELLED:
+                return "The trip has been cancelled. Please contact the hotline for a refund.";
+            case COMPLETED:
+                return "The trip has been completed. Thank you for using our service!";
+            default:
+                return "The trip status has been updated.";
+        }
     }
-}
 
     private Specification<Trip> sortByEffectivePriceAsc() {
         return (root, query, cb) -> {
