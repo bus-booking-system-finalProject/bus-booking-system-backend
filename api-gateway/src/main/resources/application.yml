@@ -1,3 +1,8 @@
 spring:
   application:
     name: api-gateway
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: false # Disable auto-discovery routes to avoid conflicts

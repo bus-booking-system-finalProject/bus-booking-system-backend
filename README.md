@@ -34,8 +34,22 @@ Navigate to the root directory and build the JAR files, skipping tests for a fas
 
 Once the build is complete, orchestrate the containers using Docker Compose:
 
+1 Firstly, run the core infrastructure: database, redis service
+
 ```bash
-docker-compose --profile infra up
+docker-compose --profile infra up -d
+```
+
+2 Start: config-server, service-registry, api-gateway
+
+```bash
+docker-compose --profile core up -d
+```
+
+3 Start the main application: booking-service, user-service
+
+```bash
+docker-compose up -d
 ```
 
 ## 🔗 URLs & Services

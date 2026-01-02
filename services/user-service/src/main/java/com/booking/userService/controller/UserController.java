@@ -21,6 +21,8 @@ import org.springframework.web.bind.annotation.*;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.springframework.web.multipart.MultipartFile; // Make sure this is imported
+
 @RestController
 @RequestMapping("/")
 public class UserController {
@@ -179,6 +181,29 @@ public class UserController {
         response.put("message", "Profile updated successfully");
 
         return ResponseEntity.ok(response);
+    }
+
+    // --- NEW: Upload Avatar Endpoint ---
+    @PostMapping(value = "/avatar", consumes = "multipart/form-data")
+    public ResponseEntity<?> uploadAvatar(
+            @AuthenticationPrincipal UserDetails currentUser,
+            @RequestParam("file") MultipartFile file
+    ) {
+        try {
+            // Call the service method you just wrote
+            String fileUrl = userService.uploadAvatar(currentUser.getUsername(), file);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("data", fileUrl);
+            response.put("message", "Avatar uploaded successfully");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("success", false);
+            error.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
     }
 
     // --- NEW: Change Password (Phase 1) ---

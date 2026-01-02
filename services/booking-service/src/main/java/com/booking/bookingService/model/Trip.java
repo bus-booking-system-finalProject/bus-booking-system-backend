@@ -54,7 +54,7 @@ public class Trip {
     private TripStatus status;
 
     public enum TripStatus {
-        SCHEDULED, CANCELLED, COMPLETED
+        SCHEDULED, DELAYED, CANCELLED, COMPLETED
     }
 
     public LocalDateTime getArrivalTime() {

@@ -11,7 +11,11 @@ services:
     ports:
       - "5431:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U user-service -d vexesieure_user-service_db"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U user-service -d vexesieure_user-service_db",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -31,7 +35,11 @@ services:
     ports:
       - "5433:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U booking-service -d vexesieure_booking-service_db"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U booking-service -d vexesieure_booking-service_db",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -128,13 +136,14 @@ services:
     image: com.booking/booking-service:0.0.1-SNAPSHOT
     ports:
       - "8083:8083"
+      - "9085:9085" # Socket.IO
     healthcheck:
       test: ["CMD-SHELL", "bash -c '</dev/tcp/localhost/8083'"]
       interval: 5s
       timeout: 5s
       retries: 10
     environment:
-      - SPRING_DATA_REDIS_HOST=redis 
+      - SPRING_DATA_REDIS_HOST=redis
       - SPRING_DATA_REDIS_PORT=6379
       - SPRING_PROFILES_ACTIVE=${ACTIVE_PROFILE}
     networks:
@@ -154,7 +163,7 @@ services:
       retries: 5
     networks:
       - booking-network
-    
+
   # --- 4. API Gateway ---
   api-gateway:
     hostname: api-gateway
