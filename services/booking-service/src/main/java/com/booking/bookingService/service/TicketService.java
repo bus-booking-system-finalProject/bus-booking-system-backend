@@ -534,9 +534,7 @@ public class TicketService {
         // 3. Aggregate all tickets sharing this reference
         // (Assuming future support for split tickets, or simply finding the single
         // ticket by unique code)
-        List<Ticket> allTickets = ticketRepository.findAll().stream()
-                .filter(t -> reference.equals(t.getTicketCode()))
-                .collect(Collectors.toList());
+        List<Ticket> allTickets = ticketRepository.findAllByTicketCode(reference);
 
         if (allTickets.isEmpty()) {
             throw new ResourceNotFoundException("No tickets found for booking reference: " + reference);
