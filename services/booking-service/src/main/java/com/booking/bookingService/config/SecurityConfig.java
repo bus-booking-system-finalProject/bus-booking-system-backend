@@ -67,19 +67,19 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/tickets/{id:[0-9a-fA-F-]{36}}").permitAll()
 
                                                 // 3. MASTER DATA
-                                                .requestMatchers("/trips/**").permitAll()
+                .requestMatchers("/trips/**").permitAll()
 
                 // ADMIN
                 .requestMatchers("/profiles/**").hasRole( "OPERATOR")
-                .requestMatchers("/operators/**", "/buses**", "/routes/**").hasAnyRole("ADMIN", "OPERATOR")
+                .requestMatchers("/operators/**", "/buses**", "/routes/**", "/analytics/**").hasAnyRole("ADMIN", "OPERATOR")
                 .requestMatchers("/admin/**").hasAnyRole("ADMIN", "OPERATOR")
 
-                                                .requestMatchers(HttpMethod.GET, "/feedback/operators/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/feedback/operators/**").permitAll()
 
-                                                .requestMatchers(HttpMethod.POST, "/feedback").authenticated()
+                .requestMatchers(HttpMethod.POST, "/feedback").authenticated()
 
-                                                // 4. API CÒN LẠI -> Cần đăng nhập (Bao gồm xem lịch sử GET /tickets)
-                                                .anyRequest().authenticated());
+                // 4. API CÒN LẠI -> Cần đăng nhập (Bao gồm xem lịch sử GET /tickets)
+                .anyRequest().authenticated());
 
                 return http.build();
         }

@@ -156,6 +156,7 @@ public class RouteService {
         List<RouteStop> routeStops = route.getStops();
 
         List<RouteResponse.StopDto> pickupPoints = routeStops.stream()
+                .filter(stop -> stop.getType() == StopType.PICKUP)
                 .map(this::mapToStopDto)
                 .collect(Collectors.toList());
 
@@ -190,6 +191,7 @@ public class RouteService {
             .dropoffPoints(dropoffPoints)
             .from(fromDto)
             .to(toDto)
+            .active(route.isActive())
             .build();
     }
 
@@ -201,7 +203,7 @@ public class RouteService {
 
     private RouteResponse.StopDto mapToStopDto(RouteStop stop) {
         return RouteResponse.StopDto.builder()
-                .id(stop.getId())
+                .id(stop.getStation().getId())
                 .name(stop.getStation().getName())
                 .address(stop.getFullAddress())
                 .duration(stop.getDuration())
