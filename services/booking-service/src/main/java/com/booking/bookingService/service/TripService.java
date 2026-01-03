@@ -89,11 +89,13 @@ public class TripService {
         // 2. Check Bus/Route consistency
         Bus bus = busRepository.findById(request.getBusId())
                 .orElseThrow(() -> new ResourceNotFoundException("Bus not found"));
-        if (!bus.getOperator().getId().equals(currentOperatorId)) throw new IllegalArgumentException("Invalid Bus");
+        if (!bus.getOperator().getId().equals(currentOperatorId))
+            throw new IllegalArgumentException("Invalid Bus");
 
         Route route = routeRepository.findById(request.getRouteId())
                 .orElseThrow(() -> new ResourceNotFoundException("Route not found"));
-        if (!route.getOperator().getId().equals(currentOperatorId)) throw new IllegalArgumentException("Invalid Route");
+        if (!route.getOperator().getId().equals(currentOperatorId))
+            throw new IllegalArgumentException("Invalid Route");
 
         // 3. Update
         validateBusAvailability(request.getBusId(), request.getDepartureTime(), request.getArrivalTime(), tripId);
@@ -102,8 +104,9 @@ public class TripService {
         trip.setRoute(route);
         trip.setDepartureTime(request.getDepartureTime());
         trip.setOriginalPrice(request.getOriginalPrice());
-        trip.setDiscountPrice(request.getDiscountPrice() != null ? request.getDiscountPrice() : BigDecimal.ONE.negate());
-        
+        trip.setDiscountPrice(
+                request.getDiscountPrice() != null ? request.getDiscountPrice() : BigDecimal.ONE.negate());
+
         if (request.getStatus() != null) {
             trip.setStatus(Trip.TripStatus.valueOf(request.getStatus()));
         }
@@ -149,16 +152,17 @@ public class TripService {
 
     private Specification<Trip> sortByEffectivePriceAsc() {
         return (root, query, cb) -> {
-            // We must check query.getResultType() to avoid crashing the "Count" query used for pagination
+            // We must check query.getResultType() to avoid crashing the "Count" query used
+            // for pagination
             if (query.getResultType() != Long.class && query.getResultType() != long.class) {
-                
+
                 // Logic: IF discountPrice > -1 THEN discountPrice ELSE originalPrice
                 Expression<BigDecimal> effectivePrice = cb.selectCase()
-                    .when(cb.greaterThan(root.get("discountPrice"), BigDecimal.valueOf(-1)), 
-                        root.get("discountPrice"))
-                    .otherwise(root.get("originalPrice"))
-                    .as(BigDecimal.class);
-                
+                        .when(cb.greaterThan(root.get("discountPrice"), BigDecimal.valueOf(-1)),
+                                root.get("discountPrice"))
+                        .otherwise(root.get("originalPrice"))
+                        .as(BigDecimal.class);
+
                 // Apply the Order By directly to the query
                 query.orderBy(cb.asc(effectivePrice));
             }
@@ -176,9 +180,10 @@ public class TripService {
             var modelJoin = root.join("busModel");
 
             Expression<BigDecimal> effectivePrice = criteriaBuilder.selectCase()
-                .when(criteriaBuilder.greaterThan(root.get("discountPrice"), BigDecimal.ONE.negate()), root.get("discountPrice"))
-                .otherwise(root.get("originalPrice"))
-                .as(BigDecimal.class);
+                    .when(criteriaBuilder.greaterThan(root.get("discountPrice"), BigDecimal.ONE.negate()),
+                            root.get("discountPrice"))
+                    .otherwise(root.get("originalPrice"))
+                    .as(BigDecimal.class);
 
             // 1. Origin
             if (request.getOrigin() != null && !request.getOrigin().isEmpty()) {
@@ -239,37 +244,36 @@ public class TripService {
                 predicates.add(operatorJoin.get("name").in(request.getOperators()));
             }
 
-            // 10. Departure Time Slots
-            // ALWAYS enforce the "30-minute from now" rule
+            // 10. Departure Time - ALWAYS enforce "30-minute from now" rule
             LocalDateTime cutoffTime = LocalDateTime.now().plusMinutes(30);
 
+            // DEBUG LOG
+            System.out.println("=== TRIP SEARCH DEBUG ===");
+            System.out.println("Current time (now): " + LocalDateTime.now());
+            System.out.println("Cutoff time (now + 30m): " + cutoffTime);
+            System.out.println("Search date: " + request.getDate());
+            System.out.println("=========================");
+
+            // Rule 1: ALWAYS only show trips departing > 30 minutes from now
+            predicates.add(criteriaBuilder.greaterThan(root.get("departureTime"), cutoffTime));
+
+            // Rule 2: Additionally filter by specific date if provided
             if (request.getDate() != null) {
-                // Determine the window for the specific day requested
                 LocalDateTime dayStart = request.getDate().atStartOfDay();
                 LocalDateTime dayEnd = request.getDate().atTime(LocalTime.MAX);
 
                 // If user provided specific hours (min/max), narrow the window
-                LocalDateTime searchStart = (request.getMinDepartureTime() != null) 
-                                            ? request.getDate().atTime(request.getMinDepartureTime()) 
-                                            : dayStart;
-                
-                LocalDateTime searchEnd = (request.getMaxDepartureTime() != null) 
-                                        ? request.getDate().atTime(request.getMaxDepartureTime()) 
-                                        : dayEnd;
+                LocalDateTime searchStart = (request.getMinDepartureTime() != null)
+                        ? request.getDate().atTime(request.getMinDepartureTime())
+                        : dayStart;
 
-                // The actual start must be the LATER of (Search Start) vs (Now + 30m)
-                LocalDateTime finalStart = searchStart.isBefore(cutoffTime) ? cutoffTime : searchStart;
+                LocalDateTime searchEnd = (request.getMaxDepartureTime() != null)
+                        ? request.getDate().atTime(request.getMaxDepartureTime())
+                        : dayEnd;
 
-                // Only add if the window is still valid
-                if (finalStart.isBefore(searchEnd)) {
-                    predicates.add(criteriaBuilder.between(root.get("departureTime"), finalStart, searchEnd));
-                } else {
-                    // If the requested time has already passed (+ 30m buffer), return nothing
-                    predicates.add(criteriaBuilder.disjunction()); 
-                }
-            } else {
-                // If no date is selected, just ensure we don't show past trips
-                predicates.add(criteriaBuilder.greaterThan(root.get("departureTime"), cutoffTime));
+                // Filter within the day's time range
+                predicates.add(criteriaBuilder.greaterThanOrEqualTo(root.get("departureTime"), searchStart));
+                predicates.add(criteriaBuilder.lessThanOrEqualTo(root.get("departureTime"), searchEnd));
             }
 
             return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
@@ -380,14 +384,15 @@ public class TripService {
     public void assignBusToTrip(UUID tripId, UUID busId, UUID operatorId) {
         Trip trip = tripRepository.findById(tripId).orElseThrow(() -> new ResourceNotFoundException("Trip not found"));
         validateOwnership(trip, operatorId);
-        
+
         Bus bus = busRepository.findById(busId).orElseThrow(() -> new ResourceNotFoundException("Bus not found"));
-        
+
         // VALIDATION: Physical bus must match the Trip's BusType
         if (!bus.getModel().getId().equals(trip.getBusModel().getId())) {
-            throw new IllegalArgumentException("Bus Type mismatch! This trip requires: " + trip.getBusModel().getName());
+            throw new IllegalArgumentException(
+                    "Bus Type mismatch! This trip requires: " + trip.getBusModel().getName());
         }
-        
+
         trip.setBus(bus);
         tripRepository.save(trip);
     }
@@ -424,16 +429,17 @@ public class TripService {
 
         // Determine the specific Start (From) and End (To) points using Entity flags
         TripSearchResponse.StopDto fromStopDto = routeStops.stream()
-                .filter(stop -> stop.isOrigin())        // Check the Entity flag
+                .filter(stop -> stop.isOrigin()) // Check the Entity flag
                 .findFirst()
-                .map(this::mapToStopDto)                // Map the found entity to DTO
+                .map(this::mapToStopDto) // Map the found entity to DTO
                 .orElse(!pickupPoints.isEmpty() ? pickupPoints.get(0) : null); // Fallback to first if not found
 
         TripSearchResponse.StopDto toStopDto = routeStops.stream()
-                .filter(stop -> stop.isDestination())   // Check the Entity flag
+                .filter(stop -> stop.isDestination()) // Check the Entity flag
                 .findFirst()
-                .map(this::mapToStopDto)                // Map the found entity to DTO
-                .orElse(!dropoffPoints.isEmpty() ? dropoffPoints.get(dropoffPoints.size() - 1) : null); // Fallback to last
+                .map(this::mapToStopDto) // Map the found entity to DTO
+                .orElse(!dropoffPoints.isEmpty() ? dropoffPoints.get(dropoffPoints.size() - 1) : null); // Fallback to
+                                                                                                        // last
 
         return TripSearchResponse.builder()
                 .tripId(trip.getId())
