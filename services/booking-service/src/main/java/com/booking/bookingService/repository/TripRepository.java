@@ -14,23 +14,29 @@ import java.util.UUID;
 
 @Repository
 public interface TripRepository extends JpaRepository<Trip, UUID>, JpaSpecificationExecutor<Trip> {
-    
-    @Query("SELECT t FROM Trip t " +
-           "WHERE t.bus.id = :busId " +
-           "AND t.status != 'CANCELLED' " +
-           "AND ((t.departureTime < :endTime) AND " +
-           "(CAST(t.departureTime AS timestamp) + (t.route.estimatedMinutes MINUTE) > :startTime))")
+
+    // FIX: Use Native Query for reliable date arithmetic with Intervals
+    @Query(value = """
+        SELECT t.* FROM trip t
+        INNER JOIN route r ON t.route_id = r.id
+        WHERE t.bus_id = :busId
+        AND t.status != 'CANCELLED'
+        AND t.departure_time < :endTime
+        AND (:startTime < (t.departure_time + (r.estimated_minutes * INTERVAL '1 minute')))
+    """, nativeQuery = true)
     List<Trip> findConflictingTrips(
-            @Param("busId") UUID busId, 
-            @Param("startTime") LocalDateTime startTime, 
+            @Param("busId") UUID busId,
+            @Param("startTime") LocalDateTime startTime,
             @Param("endTime") LocalDateTime endTime
     );
 
+    // Concurrency Safe Decrement
     @Modifying
     @Query("UPDATE Trip t SET t.availableSeats = t.availableSeats - :amount " +
            "WHERE t.id = :tripId AND t.availableSeats >= :amount")
     int decrementAvailableSeats(@Param("tripId") UUID tripId, @Param("amount") int amount);
 
+    // Concurrency Safe Increment
     @Modifying
     @Query("UPDATE Trip t SET t.availableSeats = t.availableSeats + :amount WHERE t.id = :tripId")
     void incrementAvailableSeats(@Param("tripId") UUID tripId, @Param("amount") int amount);

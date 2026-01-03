@@ -69,7 +69,7 @@ public class TicketCleanupService {
                 Trip trip = ticket.getTrip();
                 // Đảm bảo không cộng vượt quá sức chứa (phòng hờ)
                 int newAvailable = trip.getAvailableSeats() + seatCodes.size();
-                if (newAvailable <= trip.getBus().getModel().getSeatCapacity()) {
+                if (newAvailable <= trip.getBusModel().getSeatCapacity()) {
                     trip.setAvailableSeats(newAvailable);
                     tripRepository.save(trip);
                 }

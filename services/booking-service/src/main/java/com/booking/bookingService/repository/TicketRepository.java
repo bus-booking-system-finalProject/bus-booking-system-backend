@@ -100,4 +100,7 @@ public interface TicketRepository extends JpaRepository<Ticket, UUID>, JpaSpecif
         @Param("startDate") LocalDateTime startDate, 
         @Param("endDate") LocalDateTime endDate
     );
+
+    List<Ticket> findByTripId(UUID tripId);
+    List<Ticket> findAllByTicketCode(String ticketCode);
 }
