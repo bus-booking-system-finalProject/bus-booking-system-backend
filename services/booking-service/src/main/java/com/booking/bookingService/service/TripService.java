@@ -30,6 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -462,35 +463,31 @@ public class TripService {
                 predicates.add(operatorJoin.get("name").in(request.getOperators()));
             }
 
-            // 10. Departure Time - ALWAYS enforce "30-minute from now" rule
-            LocalDateTime cutoffTime = LocalDateTime.now().plusMinutes(30);
-
-            // DEBUG LOG
-            System.out.println("=== TRIP SEARCH DEBUG ===");
-            System.out.println("Current time (now): " + LocalDateTime.now());
-            System.out.println("Cutoff time (now + 30m): " + cutoffTime);
-            System.out.println("Search date: " + request.getDate());
-            System.out.println("=========================");
-
-            // Rule 1: ALWAYS only show trips departing > 30 minutes from now
-            predicates.add(criteriaBuilder.greaterThan(root.get("departureTime"), cutoffTime));
-
-            // Rule 2: Additionally filter by specific date if provided
+            // 10. Departure Time filter using UTC time from frontend
             if (request.getDate() != null) {
-                LocalDateTime dayStart = request.getDate().atStartOfDay();
-                LocalDateTime dayEnd = request.getDate().atTime(LocalTime.MAX);
+                // Use timezone from FE, fallback to UTC if not provided
+                ZoneId zoneId = (request.getTimezone() != null && !request.getTimezone().isEmpty())
+                        ? ZoneId.of(request.getTimezone())
+                        : ZoneId.of("UTC");
+
+                // Convert Instant (UTC) to LocalDateTime using FE timezone
+                LocalDateTime searchDateTime = LocalDateTime.ofInstant(request.getDate(), zoneId);
+
+                // Apply 30-minute buffer from the provided time
+                LocalDateTime cutoffTime = searchDateTime.plusMinutes(30);
+
+                // Get end of the search day
+                LocalDateTime dayEnd = searchDateTime.toLocalDate().atTime(LocalTime.MAX);
+
+                // Rule 1: Only show trips departing > 30 minutes from FE provided time
+                predicates.add(criteriaBuilder.greaterThan(root.get("departureTime"), cutoffTime));
 
                 // If user provided specific hours (min/max), narrow the window
-                LocalDateTime searchStart = (request.getMinDepartureTime() != null)
-                        ? request.getDate().atTime(request.getMinDepartureTime())
-                        : dayStart;
-
                 LocalDateTime searchEnd = (request.getMaxDepartureTime() != null)
-                        ? request.getDate().atTime(request.getMaxDepartureTime())
+                        ? searchDateTime.toLocalDate().atTime(request.getMaxDepartureTime())
                         : dayEnd;
 
                 // Filter within the day's time range
-                predicates.add(criteriaBuilder.greaterThanOrEqualTo(root.get("departureTime"), searchStart));
                 predicates.add(criteriaBuilder.lessThanOrEqualTo(root.get("departureTime"), searchEnd));
             }
 
