@@ -1,6 +1,11 @@
 spring:
   application:
     name: booking-service
+  jackson:
+    time-zone: Asia/Ho_Chi_Minh
+
+# Set JVM timezone for LocalDateTime.now()
+# This is handled in the main application class
 
 springdoc:
   api-docs:
