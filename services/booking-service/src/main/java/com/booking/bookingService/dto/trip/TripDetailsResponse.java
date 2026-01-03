@@ -21,6 +21,8 @@ public class TripDetailsResponse {
 
     private LocalDateTime departureTime;
 
+    private LocalDateTime arrivalTime;
+
     private BigDecimal originalPrice;
 
     private BigDecimal discountPrice;

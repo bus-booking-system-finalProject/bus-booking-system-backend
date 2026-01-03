@@ -210,6 +210,7 @@ public class TripService {
                         .typeDisplay(trip.getBusModel().getTypeDisplay())
                         .build())
                 .departureTime(trip.getDepartureTime())
+                .arrivalTime(trip.getArrivalTime())
                 .originalPrice(trip.getOriginalPrice())
                 .discountPrice(trip.getDiscountPrice())
                 .status(trip.getStatus().name())
