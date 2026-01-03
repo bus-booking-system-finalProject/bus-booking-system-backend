@@ -70,6 +70,7 @@ public class SecurityConfig {
                                                 .requestMatchers("/trips/**").permitAll()
 
                 // ADMIN
+                .requestMatchers("/profiles/**").hasRole( "OPERATOR")
                 .requestMatchers("/operators/**", "/buses**", "/routes/**").hasAnyRole("ADMIN", "OPERATOR")
                 .requestMatchers("/admin/**").hasAnyRole("ADMIN", "OPERATOR")
 
