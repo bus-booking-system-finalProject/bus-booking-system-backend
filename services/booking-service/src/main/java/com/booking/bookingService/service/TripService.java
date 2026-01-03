@@ -46,7 +46,6 @@ public class TripService {
     private final FeedbackRepository feedbackRepository;
     private final RedisLockService redisLockService;
     private final BusModelRepository busModelRepository;
-    private final SocketIOService socketIOService;
     private final TicketRepository ticketRepository;
 
     @Transactional
@@ -65,7 +64,7 @@ public class TripService {
         if (request.getBusId() != null) {
             bus = busRepository.findById(request.getBusId())
                     .orElseThrow(() -> new ResourceNotFoundException("Bus not found"));
-            
+
             if (!bus.getOperator().getId().equals(currentOperatorId)) {
                 throw new IllegalArgumentException("Invalid Bus: You do not own this bus.");
             }
@@ -75,7 +74,7 @@ public class TripService {
             // If physical Bus is null, the Operator must provide a BusModel (template)
             busModel = busModelRepository.findById(request.getBusModelId())
                     .orElseThrow(() -> new ResourceNotFoundException("Bus Model not found"));
-            
+
             if (!busModel.getOperator().getId().equals(currentOperatorId)) {
                 throw new IllegalArgumentException("Invalid Bus Model: You do not own this model.");
             }
@@ -100,7 +99,7 @@ public class TripService {
                 .build();
 
         Trip savedTrip = tripRepository.save(trip);
-        
+
         // 5. Initialize Seat status records for the trip
         initializeSeatsForTrip(savedTrip, busModel);
 
@@ -108,7 +107,7 @@ public class TripService {
     }
 
     /**
-     * Retrieves detailed trip information for the Operator, 
+     * Retrieves detailed trip information for the Operator,
      * including the Seat Map with Guest (Passenger) details.
      */
     @Transactional(readOnly = true)
@@ -120,10 +119,11 @@ public class TripService {
         validateOwnership(trip, currentOperatorId);
 
         // 2. Fetch Tickets to map Passengers to Seats
-        // We only care about valid tickets (Confirmed, Completed, or Pending if you want to see locked seats)
-        List<Ticket> tickets = ticketRepository.findByTripId(tripId); 
+        // We only care about valid tickets (Confirmed, Completed, or Pending if you
+        // want to see locked seats)
+        List<Ticket> tickets = ticketRepository.findByTripId(tripId);
         Map<String, Ticket> seatTicketMap = new HashMap<>();
-        
+
         for (Ticket t : tickets) {
             // Filter out cancelled tickets so we don't show invalid passengers
             if (t.getStatus() != Ticket.TicketStatus.CANCELLED && t.getStatus() != Ticket.TicketStatus.CANCELLED) {
@@ -137,7 +137,7 @@ public class TripService {
         // Use getBusModel() to support both Virtual and Physical buses
         List<Seat> physicalSeats = seatRepository.findByBusModelId(trip.getBusModel().getId());
         List<TripSeat> seatStatuses = seatStatusRepository.findByTripId(tripId);
-        
+
         Map<String, TripSeat.Status> statusMap = seatStatuses.stream()
                 .collect(Collectors.toMap(s -> s.getSeat().getSeatCode(), TripSeat::getStatus));
 
@@ -151,9 +151,9 @@ public class TripService {
             String code = seat.getSeatCode();
             // Get status from DB or default to AVAILABLE
             String status = statusMap.getOrDefault(code, TripSeat.Status.AVAILABLE).name();
-            
+
             TripDetailsResponse.PassengerDto passenger = null;
-            
+
             // If the seat is mapped to a ticket, populate passenger info
             if (seatTicketMap.containsKey(code)) {
                 Ticket t = seatTicketMap.get(code);
@@ -162,10 +162,11 @@ public class TripService {
                         .email(t.getContactEmail())
                         .phone(t.getContactPhone())
                         .build();
-                
-                // If the ticket is valid, ensure the status reflects it (e.g., if it was PENDING but DB says AVAILABLE due to lag)
+
+                // If the ticket is valid, ensure the status reflects it (e.g., if it was
+                // PENDING but DB says AVAILABLE due to lag)
                 if (status.equals("AVAILABLE")) {
-                    status = "BOOKED"; 
+                    status = "BOOKED";
                 }
             }
 
@@ -228,65 +229,76 @@ public class TripService {
 
         // 2. Update Route (if provided)
         if (request.getRouteId() != null) {
-            throw new IllegalArgumentException("Can not change Route after creation. Please update Trip Status and create another one.");
+            throw new IllegalArgumentException(
+                    "Can not change Route after creation. Please update Trip Status and create another one.");
         }
 
         // 3. Update Bus Logic
-        
-        // Rule A: Trip BusModel is immutable after creation (to preserve seat map integrity)
+
+        // Rule A: Trip BusModel is immutable after creation (to preserve seat map
+        // integrity)
         if (request.getBusModelId() != null && !request.getBusModelId().equals(trip.getBusModel().getId())) {
-             throw new IllegalArgumentException("Cannot change Bus Model after trip creation. You must use a bus of type: " + trip.getBusModel().getTypeDisplay());
+            throw new IllegalArgumentException(
+                    "Cannot change Bus Model after trip creation. You must use a bus of type: "
+                            + trip.getBusModel().getTypeDisplay());
         }
 
         // Rule B: Assigning a Physical Bus
         if (request.getBusId() != null) {
             Bus bus = busRepository.findById(request.getBusId())
                     .orElseThrow(() -> new ResourceNotFoundException("Bus not found"));
-            
+
             if (!bus.getOperator().getId().equals(currentOperatorId)) {
                 throw new IllegalArgumentException("Invalid Bus: You do not own this bus.");
             }
 
-            // CHANGED: Allow assignment if the 'TypeDisplay' matches, even if the Model ID is different.
+            // CHANGED: Allow assignment if the 'TypeDisplay' matches, even if the Model ID
+            // is different.
             // This supports substituting vehicles (e.g. swapping one Sleeper for another).
             if (!bus.getModel().getTypeDisplay().equals(trip.getBusModel().getTypeDisplay())) {
-                throw new IllegalArgumentException("Bus Type Mismatch: The selected bus type (" 
-                    + bus.getModel().getTypeDisplay() + ") does not match the trip's required type (" 
-                    + trip.getBusModel().getTypeDisplay() + ").");
+                throw new IllegalArgumentException("Bus Type Mismatch: The selected bus type ("
+                        + bus.getModel().getTypeDisplay() + ") does not match the trip's required type ("
+                        + trip.getBusModel().getTypeDisplay() + ").");
             }
 
             // Determine time for availability check
-            LocalDateTime departureTime = request.getDepartureTime() != null ? request.getDepartureTime() : trip.getDepartureTime();
+            LocalDateTime departureTime = request.getDepartureTime() != null ? request.getDepartureTime()
+                    : trip.getDepartureTime();
             LocalDateTime arrivalTime = departureTime.plusMinutes(trip.getRoute().getEstimatedMinutes());
 
             // Validate Availability
             validateBusAvailability(request.getBusId(), departureTime, arrivalTime, tripId);
 
             trip.setBus(bus);
-            // Note: We DO NOT update trip.setBusModel() here. The trip keeps its original "Template" (Seat Map).
-        } 
-        else if (request.getBusModelId() != null) {
-            // Case: Request has BusModelId (which we verified matches existing) but NO BusId 
-            // -> User wants to "Unassign" the physical bus (Revert to Virtual/Template only)
-            trip.setBus(null); 
+            // Note: We DO NOT update trip.setBusModel() here. The trip keeps its original
+            // "Template" (Seat Map).
+        } else if (request.getBusModelId() != null) {
+            // Case: Request has BusModelId (which we verified matches existing) but NO
+            // BusId
+            // -> User wants to "Unassign" the physical bus (Revert to Virtual/Template
+            // only)
+            trip.setBus(null);
         }
 
         // 4. Update Time & Prices
         if (request.getDepartureTime() != null) {
             trip.setDepartureTime(request.getDepartureTime());
-            
+
             // Re-validate availability if we have a physical bus assigned
             if (trip.getBus() != null) {
-                 LocalDateTime arrivalTime = request.getDepartureTime().plusMinutes(trip.getRoute().getEstimatedMinutes());
-                 validateBusAvailability(trip.getBus().getId(), request.getDepartureTime(), arrivalTime, tripId);
+                LocalDateTime arrivalTime = request.getDepartureTime()
+                        .plusMinutes(trip.getRoute().getEstimatedMinutes());
+                validateBusAvailability(trip.getBus().getId(), request.getDepartureTime(), arrivalTime, tripId);
             }
         }
-        
+
         if (request.getOriginalPrice() != null) {
             trip.setOriginalPrice(request.getOriginalPrice());
         }
-        
-        trip.setDiscountPrice((request.getDiscountPrice() != null || request.getDiscountPrice() == BigDecimal.ZERO) ? request.getDiscountPrice() : BigDecimal.ONE.negate());
+
+        trip.setDiscountPrice((request.getDiscountPrice() != null || request.getDiscountPrice() == BigDecimal.ZERO)
+                ? request.getDiscountPrice()
+                : BigDecimal.ONE.negate());
 
         // 5. Update Status
         if (request.getStatus() != null) {
@@ -300,7 +312,7 @@ public class TripService {
 
         return mapToCreateResponse(tripRepository.save(trip));
     }
-    
+
     // --- Delete Trip ---
     @Transactional
     public void deleteTrip(UUID tripId, UUID currentOperatorId) {
@@ -313,19 +325,6 @@ public class TripService {
         seatStatusRepository.deleteAll(statuses);
 
         tripRepository.delete(trip);
-    }
-
-    private String getStatusChangeMessage(Trip.TripStatus status) {
-        switch (status) {
-            case DELAYED:
-                return "The trip has been delayed. Please check the new departure time.";
-            case CANCELLED:
-                return "The trip has been cancelled. Please contact the hotline for a refund.";
-            case COMPLETED:
-                return "The trip has been completed. Thank you for using our service!";
-            default:
-                return "The trip status has been updated.";
-        }
     }
 
     // Get Operator's own trips
@@ -353,7 +352,7 @@ public class TripService {
                 // Create a range for the whole day (00:00:00 to 23:59:59)
                 LocalDateTime startOfDay = params.getDate().atStartOfDay();
                 LocalDateTime endOfDay = params.getDate().atTime(LocalTime.MAX);
-                
+
                 predicates.add(cb.between(root.get("departureTime"), startOfDay, endOfDay));
             }
 
@@ -363,7 +362,8 @@ public class TripService {
             return cb.and(predicates.toArray(new Predicate[0]));
         };
 
-        // Use findAll(Specification) which is available because TripRepository extends JpaSpecificationExecutor
+        // Use findAll(Specification) which is available because TripRepository extends
+        // JpaSpecificationExecutor
         return tripRepository.findAll(spec).stream()
                 .map(this::mapToCreateResponse)
                 .collect(Collectors.toList());
@@ -476,19 +476,39 @@ public class TripService {
                 // Apply 30-minute buffer from the provided time
                 LocalDateTime cutoffTime = searchDateTime.plusMinutes(30);
 
-                // Get end of the search day
+                // Get start and end of the search day
                 LocalDateTime dayEnd = searchDateTime.toLocalDate().atTime(LocalTime.MAX);
 
-                // Rule 1: Only show trips departing > 30 minutes from FE provided time
-                predicates.add(criteriaBuilder.greaterThan(root.get("departureTime"), cutoffTime));
+                // Calculate search start time:
+                // - If user provided minDepartureTime, use it (converted to LocalDateTime of
+                // that day)
+                // - But ensure it's not before the 30-minute cutoff
+                LocalDateTime searchStart;
+                if (request.getMinDepartureTime() != null) {
+                    LocalDateTime userMinTime = searchDateTime.toLocalDate().atTime(request.getMinDepartureTime());
+                    // Take the later of: user's min time OR cutoff time (30 min from now)
+                    searchStart = userMinTime.isAfter(cutoffTime) ? userMinTime : cutoffTime;
+                } else {
+                    searchStart = cutoffTime;
+                }
 
-                // If user provided specific hours (min/max), narrow the window
+                // Calculate search end time:
+                // - If user provided maxDepartureTime, use it
+                // - Otherwise, use end of day
                 LocalDateTime searchEnd = (request.getMaxDepartureTime() != null)
                         ? searchDateTime.toLocalDate().atTime(request.getMaxDepartureTime())
                         : dayEnd;
 
-                // Filter within the day's time range
-                predicates.add(criteriaBuilder.lessThanOrEqualTo(root.get("departureTime"), searchEnd));
+                // Only add predicates if the time range is valid
+                if (searchStart.isBefore(searchEnd) || searchStart.isEqual(searchEnd)) {
+                    // Filter: departureTime > searchStart
+                    predicates.add(criteriaBuilder.greaterThan(root.get("departureTime"), searchStart));
+                    // Filter: departureTime <= searchEnd
+                    predicates.add(criteriaBuilder.lessThanOrEqualTo(root.get("departureTime"), searchEnd));
+                } else {
+                    // Invalid range - no results should be returned
+                    predicates.add(criteriaBuilder.disjunction()); // Always false
+                }
             }
 
             return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
@@ -742,10 +762,10 @@ public class TripService {
             BusModel busModel = trip.getBusModel();
 
             busModelResponse = BusModelDto.builder()
-                .id(busModel.getId())
-                .name(busModel.getName())
-                .typeDisplay(busModel.getTypeDisplay())
-                .build(); 
+                    .id(busModel.getId())
+                    .name(busModel.getName())
+                    .typeDisplay(busModel.getTypeDisplay())
+                    .build();
         }
 
         // Map Bus (Handle null case)
@@ -757,7 +777,6 @@ public class TripService {
                     .busModel(busModelResponse)
                     .build();
         }
-
 
         return TripCreateResponse.builder()
                 .id(trip.getId())
