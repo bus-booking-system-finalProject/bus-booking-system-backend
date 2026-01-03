@@ -169,7 +169,7 @@ public class UserController {
     @PutMapping("/profile")
     public ResponseEntity<?> updateProfile(
             @AuthenticationPrincipal UserDetails currentUser,
-            @RequestBody UpdateProfileRequest request
+            @Valid @RequestBody UpdateProfileRequest request
     ) {
         // currentUser.getUsername() is the email
         User updatedUser = userService.updateUserProfile(currentUser.getUsername(), request);
