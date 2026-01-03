@@ -68,7 +68,7 @@ public class SecurityConfig {
 
                                                 // 3. MASTER DATA
                 .requestMatchers("/trips/**").permitAll()
-
+                .requestMatchers("/reviews/**").permitAll()
                 // ADMIN
                 .requestMatchers("/profiles/**").hasRole( "OPERATOR")
                 .requestMatchers("/operators/**", "/buses**", "/routes/**", "/analytics/**").hasAnyRole("ADMIN", "OPERATOR")
