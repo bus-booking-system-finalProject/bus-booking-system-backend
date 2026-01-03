@@ -28,11 +28,13 @@ public class BusController {
     // 1. Create Model (Must include seatDefinitions)
     @PostMapping(value = "/models", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> createBusModel(
-            @Valid @RequestBody BusModelRequest request,
+            @RequestPart("model") @Valid BusModelRequest request, 
             @RequestPart(value = "images", required = false) List<MultipartFile> images,
             @CurrentOperator UUID operatorId
     ) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(busService.createBusModel(request, images, operatorId), "Bus Model created successfully"));
+        return ResponseEntity.status(HttpStatus.CREATED).body(
+            ApiResponse.success(busService.createBusModel(request, images, operatorId), "Bus Model created successfully")
+        );
     }
 
     @GetMapping("/models")
