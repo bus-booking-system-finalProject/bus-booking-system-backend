@@ -16,7 +16,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 @RestController
-@RequestMapping("/admin/analytics")
+@RequestMapping("/analytics")
 @RequiredArgsConstructor
 public class AdminAnalyticsController {
 
