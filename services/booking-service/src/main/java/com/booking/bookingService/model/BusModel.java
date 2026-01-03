@@ -74,6 +74,8 @@ public class BusModel {
             sb.append(" có WC");
         }
 
+        sb.append(" ").append(seatCapacity).append(" chỗ");
+
         return sb.toString().trim(); 
     }
 }

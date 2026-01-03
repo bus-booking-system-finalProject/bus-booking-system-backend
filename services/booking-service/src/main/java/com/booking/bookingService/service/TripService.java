@@ -3,9 +3,15 @@ package com.booking.bookingService.service;
 import com.booking.bookingService.Enum.BusType;
 import com.booking.bookingService.Enum.StopType;
 import com.booking.bookingService.dto.ticket.SeatMapResponse;
-import com.booking.bookingService.dto.trip.TripRequest;
+import com.booking.bookingService.dto.trip.TripCreateRequest;
+import com.booking.bookingService.dto.trip.TripCreateResponse;
 import com.booking.bookingService.dto.trip.TripSearchRequest;
 import com.booking.bookingService.dto.trip.TripSearchResponse;
+import com.booking.bookingService.dto.trip.admin.TripSearchParams;
+import com.booking.bookingService.dto.trip.TripCreateResponse.BusDto;
+import com.booking.bookingService.dto.trip.TripCreateResponse.BusModelDto;
+import com.booking.bookingService.dto.trip.TripCreateResponse.RouteDto;
+import com.booking.bookingService.dto.trip.TripDetailsResponse;
 import com.booking.bookingService.model.*;
 import com.booking.bookingService.repository.*;
 import com.booking.bookingService.exception.ResourceNotFoundException;
@@ -38,82 +44,262 @@ public class TripService {
     private final TripSeatRepository seatStatusRepository;
     private final FeedbackRepository feedbackRepository;
     private final RedisLockService redisLockService;
+    private final BusModelRepository busModelRepository;
     private final SocketIOService socketIOService;
+    private final TicketRepository ticketRepository;
 
     @Transactional
-    public Trip createTrip(TripRequest request, UUID currentOperatorId) {
-        // 1. Validate Bus Ownership
-        Bus bus = busRepository.findById(request.getBusId())
-                .orElseThrow(() -> new ResourceNotFoundException("Bus not found"));
-        if (!bus.getOperator().getId().equals(currentOperatorId)) {
-            throw new IllegalArgumentException("Invalid Bus: You do not own this bus.");
-        }
-
-        // 2. Validate Route Ownership
+    public TripCreateResponse createTrip(TripCreateRequest request, UUID currentOperatorId) {
+        // 1. Validate Route Ownership
         Route route = routeRepository.findById(request.getRouteId())
                 .orElseThrow(() -> new ResourceNotFoundException("Route not found"));
         if (!route.getOperator().getId().equals(currentOperatorId)) {
             throw new IllegalArgumentException("Invalid Route: You do not own this route.");
         }
 
-        // 3. Check Availability
-        validateBusAvailability(request.getBusId(), request.getDepartureTime(), request.getArrivalTime(), null);
+        Bus bus = null;
+        BusModel busModel = null;
 
-        BigDecimal discount = request.getDiscountPrice() != null ? request.getDiscountPrice() : BigDecimal.ONE.negate();
+        // 2. Determine Bus and BusModel
+        if (request.getBusId() != null) {
+            bus = busRepository.findById(request.getBusId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Bus not found"));
+            
+            if (!bus.getOperator().getId().equals(currentOperatorId)) {
+                throw new IllegalArgumentException("Invalid Bus: You do not own this bus.");
+            }
+            // Auto-get BusModel from the physical Bus
+            busModel = bus.getModel();
+        } else if (request.getBusModelId() != null) {
+            // If physical Bus is null, the Operator must provide a BusModel (template)
+            busModel = busModelRepository.findById(request.getBusModelId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Bus Model not found"));
+            
+            if (!busModel.getOperator().getId().equals(currentOperatorId)) {
+                throw new IllegalArgumentException("Invalid Bus Model: You do not own this model.");
+            }
+        } else {
+            throw new IllegalArgumentException("Either BusId or BusModelId must be provided.");
+        }
 
+        // 3. Handle Pricing (Default discount to -1 if null)
+        BigDecimal discount = request.getDiscountPrice() != null ? request.getDiscountPrice() : BigDecimal.valueOf(-1);
+
+        // 4. Build Trip (Status defaults to SCHEDULED)
         Trip trip = Trip.builder()
-                .bus(bus)
+                .bus(bus) // Can be null
+                .busModel(busModel) // Inherited from Bus or provided directly
                 .route(route)
-                .operator(bus.getOperator()) // Guaranteed to be currentOperator
+                .operator(route.getOperator())
                 .departureTime(request.getDepartureTime())
                 .originalPrice(request.getOriginalPrice())
                 .discountPrice(discount)
-                .status(Trip.TripStatus.SCHEDULED)
-                .availableSeats(bus.getModel().getSeatCapacity())
+                .status(Trip.TripStatus.SCHEDULED) // Requirement: default to SCHEDULED
+                .availableSeats(busModel.getSeatCapacity())
                 .build();
 
         Trip savedTrip = tripRepository.save(trip);
-        initializeSeatsForTrip(savedTrip, bus);
+        
+        // 5. Initialize Seat status records for the trip
+        initializeSeatsForTrip(savedTrip, busModel);
 
-        return savedTrip;
+        return mapToCreateResponse(savedTrip);
     }
 
-    @Transactional
-    public Trip updateTrip(UUID tripId, TripRequest request, UUID currentOperatorId) {
+    /**
+     * Retrieves detailed trip information for the Operator, 
+     * including the Seat Map with Guest (Passenger) details.
+     */
+    @Transactional(readOnly = true)
+    public TripDetailsResponse getTripDetailsForOperator(UUID tripId, UUID currentOperatorId) {
         Trip trip = tripRepository.findById(tripId)
                 .orElseThrow(() -> new ResourceNotFoundException("Trip not found"));
 
         // 1. Security Check
         validateOwnership(trip, currentOperatorId);
 
-        // 2. Check Bus/Route consistency
-        Bus bus = busRepository.findById(request.getBusId())
-                .orElseThrow(() -> new ResourceNotFoundException("Bus not found"));
-        if (!bus.getOperator().getId().equals(currentOperatorId))
-            throw new IllegalArgumentException("Invalid Bus");
-
-        Route route = routeRepository.findById(request.getRouteId())
-                .orElseThrow(() -> new ResourceNotFoundException("Route not found"));
-        if (!route.getOperator().getId().equals(currentOperatorId))
-            throw new IllegalArgumentException("Invalid Route");
-
-        // 3. Update
-        validateBusAvailability(request.getBusId(), request.getDepartureTime(), request.getArrivalTime(), tripId);
-
-        trip.setBus(bus);
-        trip.setRoute(route);
-        trip.setDepartureTime(request.getDepartureTime());
-        trip.setOriginalPrice(request.getOriginalPrice());
-        trip.setDiscountPrice(
-                request.getDiscountPrice() != null ? request.getDiscountPrice() : BigDecimal.ONE.negate());
-
-        if (request.getStatus() != null) {
-            trip.setStatus(Trip.TripStatus.valueOf(request.getStatus()));
+        // 2. Fetch Tickets to map Passengers to Seats
+        // We only care about valid tickets (Confirmed, Completed, or Pending if you want to see locked seats)
+        List<Ticket> tickets = ticketRepository.findByTripId(tripId); 
+        Map<String, Ticket> seatTicketMap = new HashMap<>();
+        
+        for (Ticket t : tickets) {
+            // Filter out cancelled tickets so we don't show invalid passengers
+            if (t.getStatus() != Ticket.TicketStatus.CANCELLED && t.getStatus() != Ticket.TicketStatus.CANCELLED) {
+                for (String seat : t.getSeats()) {
+                    seatTicketMap.put(seat, t);
+                }
+            }
         }
 
-        return tripRepository.save(trip);
+        // 3. Fetch Physical Seats and Statuses
+        // Use getBusModel() to support both Virtual and Physical buses
+        List<Seat> physicalSeats = seatRepository.findByBusModelId(trip.getBusModel().getId());
+        List<TripSeat> seatStatuses = seatStatusRepository.findByTripId(tripId);
+        
+        Map<String, TripSeat.Status> statusMap = seatStatuses.stream()
+                .collect(Collectors.toMap(s -> s.getSeat().getSeatCode(), TripSeat::getStatus));
+
+        // 4. Calculate Seat Map Dimensions
+        int totalDecks = physicalSeats.stream().mapToInt(Seat::getDeckNumber).max().orElse(1);
+        int maxRows = physicalSeats.stream().mapToInt(Seat::getGridRow).max().orElse(0);
+        int maxCols = physicalSeats.stream().mapToInt(Seat::getGridCol).max().orElse(0);
+
+        // 5. Map to SeatDetailDto with Passenger info
+        List<TripDetailsResponse.SeatDetailDto> seatDetailDtos = physicalSeats.stream().map(seat -> {
+            String code = seat.getSeatCode();
+            // Get status from DB or default to AVAILABLE
+            String status = statusMap.getOrDefault(code, TripSeat.Status.AVAILABLE).name();
+            
+            TripDetailsResponse.PassengerDto passenger = null;
+            
+            // If the seat is mapped to a ticket, populate passenger info
+            if (seatTicketMap.containsKey(code)) {
+                Ticket t = seatTicketMap.get(code);
+                passenger = TripDetailsResponse.PassengerDto.builder()
+                        .name(t.getContactName())
+                        .email(t.getContactEmail())
+                        .phone(t.getContactPhone())
+                        .build();
+                
+                // If the ticket is valid, ensure the status reflects it (e.g., if it was PENDING but DB says AVAILABLE due to lag)
+                if (status.equals("AVAILABLE")) {
+                    status = "BOOKED"; 
+                }
+            }
+
+            return TripDetailsResponse.SeatDetailDto.builder()
+                    .seatCode(code)
+                    .status(status) // e.g., AVAILABLE, BOOKED, LOCKED, MAINTENANCE
+                    .row(seat.getGridRow())
+                    .col(seat.getGridCol())
+                    .deck(seat.getDeckNumber())
+                    .passenger(passenger) // Null if no passenger
+                    .build();
+        }).collect(Collectors.toList());
+
+        // 6. Construct the Nested SeatMapDto
+        TripDetailsResponse.SeatMapDto seatMapDto = TripDetailsResponse.SeatMapDto.builder()
+                .totalDecks(totalDecks)
+                .gridRows(maxRows)
+                .gridColumns(maxCols)
+                .seats(seatDetailDtos)
+                .build();
+
+        // 7. Construct Final Response
+        return TripDetailsResponse.builder()
+                .id(trip.getId())
+                .route(TripDetailsResponse.RouteDto.builder()
+                        .id(trip.getRoute().getId())
+                        .name(trip.getRoute().getName())
+                        .build())
+                .bus(trip.getBus() != null ? TripDetailsResponse.BusDto.builder()
+                        .id(trip.getBus().getId())
+                        .name(trip.getBus().getPlateNumber())
+                        .plateNumber(trip.getBus().getPlateNumber())
+                        .busModel(TripDetailsResponse.BusModelDto.builder()
+                                .id(trip.getBus().getModel().getId())
+                                .name(trip.getBus().getModel().getName())
+                                .typeDisplay(trip.getBus().getModel().getTypeDisplay())
+                                .build())
+                        .build() : null)
+                .busModel(TripDetailsResponse.BusModelDto.builder()
+                        .id(trip.getBusModel().getId())
+                        .name(trip.getBusModel().getName())
+                        .typeDisplay(trip.getBusModel().getTypeDisplay())
+                        .build())
+                .departureTime(trip.getDepartureTime())
+                .originalPrice(trip.getOriginalPrice())
+                .discountPrice(trip.getDiscountPrice())
+                .status(trip.getStatus().name())
+                .availableSeats(trip.getAvailableSeats())
+                .seatMap(seatMapDto)
+                .build();
     }
 
+    @Transactional
+    public TripCreateResponse updateTrip(UUID tripId, TripCreateRequest request, UUID currentOperatorId) {
+        Trip trip = tripRepository.findById(tripId)
+                .orElseThrow(() -> new ResourceNotFoundException("Trip not found"));
+
+        // 1. Security Check
+        validateOwnership(trip, currentOperatorId);
+
+        // 2. Update Route (if provided)
+        if (request.getRouteId() != null) {
+            throw new IllegalArgumentException("Can not change Route after creation. Please update Trip Status and create another one.");
+        }
+
+        // 3. Update Bus Logic
+        
+        // Rule A: Trip BusModel is immutable after creation (to preserve seat map integrity)
+        if (request.getBusModelId() != null && !request.getBusModelId().equals(trip.getBusModel().getId())) {
+             throw new IllegalArgumentException("Cannot change Bus Model after trip creation. You must use a bus of type: " + trip.getBusModel().getTypeDisplay());
+        }
+
+        // Rule B: Assigning a Physical Bus
+        if (request.getBusId() != null) {
+            Bus bus = busRepository.findById(request.getBusId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Bus not found"));
+            
+            if (!bus.getOperator().getId().equals(currentOperatorId)) {
+                throw new IllegalArgumentException("Invalid Bus: You do not own this bus.");
+            }
+
+            // CHANGED: Allow assignment if the 'TypeDisplay' matches, even if the Model ID is different.
+            // This supports substituting vehicles (e.g. swapping one Sleeper for another).
+            if (!bus.getModel().getTypeDisplay().equals(trip.getBusModel().getTypeDisplay())) {
+                throw new IllegalArgumentException("Bus Type Mismatch: The selected bus type (" 
+                    + bus.getModel().getTypeDisplay() + ") does not match the trip's required type (" 
+                    + trip.getBusModel().getTypeDisplay() + ").");
+            }
+
+            // Determine time for availability check
+            LocalDateTime departureTime = request.getDepartureTime() != null ? request.getDepartureTime() : trip.getDepartureTime();
+            LocalDateTime arrivalTime = departureTime.plusMinutes(trip.getRoute().getEstimatedMinutes());
+
+            // Validate Availability
+            validateBusAvailability(request.getBusId(), departureTime, arrivalTime, tripId);
+
+            trip.setBus(bus);
+            // Note: We DO NOT update trip.setBusModel() here. The trip keeps its original "Template" (Seat Map).
+        } 
+        else if (request.getBusModelId() != null) {
+            // Case: Request has BusModelId (which we verified matches existing) but NO BusId 
+            // -> User wants to "Unassign" the physical bus (Revert to Virtual/Template only)
+            trip.setBus(null); 
+        }
+
+        // 4. Update Time & Prices
+        if (request.getDepartureTime() != null) {
+            trip.setDepartureTime(request.getDepartureTime());
+            
+            // Re-validate availability if we have a physical bus assigned
+            if (trip.getBus() != null) {
+                 LocalDateTime arrivalTime = request.getDepartureTime().plusMinutes(trip.getRoute().getEstimatedMinutes());
+                 validateBusAvailability(trip.getBus().getId(), request.getDepartureTime(), arrivalTime, tripId);
+            }
+        }
+        
+        if (request.getOriginalPrice() != null) {
+            trip.setOriginalPrice(request.getOriginalPrice());
+        }
+        
+        trip.setDiscountPrice((request.getDiscountPrice() != null || request.getDiscountPrice() == BigDecimal.ZERO) ? request.getDiscountPrice() : BigDecimal.ONE.negate());
+
+        // 5. Update Status
+        if (request.getStatus() != null) {
+            try {
+                Trip.TripStatus newStatus = Trip.TripStatus.valueOf(request.getStatus());
+                trip.setStatus(newStatus);
+            } catch (IllegalArgumentException e) {
+                // Ignore invalid status enum
+            }
+        }
+
+        return mapToCreateResponse(tripRepository.save(trip));
+    }
+    
     // --- Delete Trip ---
     @Transactional
     public void deleteTrip(UUID tripId, UUID currentOperatorId) {
@@ -128,7 +314,6 @@ public class TripService {
         tripRepository.delete(trip);
     }
 
-    // Helper method to get status change message
     private String getStatusChangeMessage(Trip.TripStatus status) {
         switch (status) {
             case DELAYED:
@@ -143,10 +328,43 @@ public class TripService {
     }
 
     // Get Operator's own trips
-    public List<TripSearchResponse> getOperatorTrips(UUID currentOperatorId) {
-        // Ensure you add `findAllByOperatorId` to TripRepository
-        return tripRepository.findAllByOperatorId(currentOperatorId).stream()
-                .map(this::mapToTripResponse)
+    public List<TripCreateResponse> getOperatorTrips(UUID operatorId, TripSearchParams params) {
+        Specification<Trip> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            // 1. Mandatory: Filter by Operator Ownership
+            predicates.add(cb.equal(root.get("operator").get("id"), operatorId));
+
+            // 2. Filter by Origin (if provided)
+            if (params.getOrigin() != null && !params.getOrigin().trim().isEmpty()) {
+                String originPattern = "%" + params.getOrigin().trim().toLowerCase() + "%";
+                predicates.add(cb.like(cb.lower(root.get("route").get("origin")), originPattern));
+            }
+
+            // 3. Filter by Destination (if provided)
+            if (params.getDestination() != null && !params.getDestination().trim().isEmpty()) {
+                String destPattern = "%" + params.getDestination().trim().toLowerCase() + "%";
+                predicates.add(cb.like(cb.lower(root.get("route").get("destination")), destPattern));
+            }
+
+            // 4. Filter by Date (if provided)
+            if (params.getDate() != null) {
+                // Create a range for the whole day (00:00:00 to 23:59:59)
+                LocalDateTime startOfDay = params.getDate().atStartOfDay();
+                LocalDateTime endOfDay = params.getDate().atTime(LocalTime.MAX);
+                
+                predicates.add(cb.between(root.get("departureTime"), startOfDay, endOfDay));
+            }
+
+            // Sort by Departure Time descending (most recent first)
+            query.orderBy(cb.desc(root.get("departureTime")));
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        // Use findAll(Specification) which is available because TripRepository extends JpaSpecificationExecutor
+        return tripRepository.findAll(spec).stream()
+                .map(this::mapToCreateResponse)
                 .collect(Collectors.toList());
     }
 
@@ -457,9 +675,10 @@ public class TripService {
                 .duration(routeDto.getDurationMinutes())
                 .from(fromStopDto)
                 .to(toStopDto)
+                // Use BusModel from Trip directly
                 .bus(TripSearchResponse.BusDto.builder()
-                        .model(trip.getBus().getModel().getName())
-                        .type(trip.getBus().getModel().getTypeDisplay())
+                        .model(trip.getBusModel().getName()) // Safe access
+                        .type(trip.getBusModel().getTypeDisplay()) // Safe access
                         .build())
                 .schedules(scheduleDto)
                 .pricing(TripSearchResponse.PricingDto.builder()
@@ -467,7 +686,8 @@ public class TripService {
                         .discount(trip.getDiscountPrice())
                         .build())
                 .availability(TripSearchResponse.AvailabilityDto.builder()
-                        .totalSeats(trip.getBus().getModel().getSeatCapacity())
+                        // Use BusModel from Trip directly
+                        .totalSeats(trip.getBusModel().getSeatCapacity()) // Safe access
                         .availableSeats(trip.getAvailableSeats())
                         .build())
                 .build();
@@ -495,8 +715,8 @@ public class TripService {
     }
 
     // --- Helper: Initialize Seats ---
-    private void initializeSeatsForTrip(Trip trip, Bus bus) {
-        List<Seat> physicalSeats = seatRepository.findByBusModelId(bus.getModel().getId());
+    private void initializeSeatsForTrip(Trip trip, BusModel busModel) {
+        List<Seat> physicalSeats = seatRepository.findByBusModelId(busModel.getId());
         List<TripSeat> statuses = physicalSeats.stream().map(seat -> TripSeat.builder()
                 .trip(trip)
                 .seat(seat)
@@ -511,5 +731,47 @@ public class TripService {
         if (!trip.getOperator().getId().equals(currentOperatorId)) {
             throw new RuntimeException("Access Denied: You do not own this trip");
         }
+    }
+
+    private TripCreateResponse mapToCreateResponse(Trip trip) {
+        // Map Route (Simplified or using RouteService logic if available)
+        RouteDto routeResponse = RouteDto.builder()
+                .id(trip.getRoute().getId())
+                .name(trip.getRoute().getName())
+                .build();
+
+        BusModelDto busModelResponse = null;
+        if (trip.getBusModel() != null) {
+            BusModel busModel = trip.getBusModel();
+
+            busModelResponse = BusModelDto.builder()
+                .id(busModel.getId())
+                .name(busModel.getName())
+                .typeDisplay(busModel.getTypeDisplay())
+                .build(); 
+        }
+
+        // Map Bus (Handle null case)
+        BusDto busResponse = null;
+        if (trip.getBus() != null) {
+            busResponse = BusDto.builder()
+                    .id(trip.getBus().getId())
+                    .plateNumber(trip.getBus().getPlateNumber())
+                    .busModel(busModelResponse)
+                    .build();
+        }
+
+
+        return TripCreateResponse.builder()
+                .id(trip.getId())
+                .route(routeResponse)
+                .busModel(busModelResponse)
+                .bus(busResponse)
+                .departureTime(trip.getDepartureTime())
+                .originalPrice(trip.getOriginalPrice())
+                .discountPrice(trip.getDiscountPrice())
+                .status(trip.getStatus().name())
+                .availableSeats(trip.getAvailableSeats())
+                .build();
     }
 }
