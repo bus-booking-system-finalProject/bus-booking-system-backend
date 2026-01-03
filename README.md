@@ -46,10 +46,10 @@ docker-compose --profile infra up -d
 docker-compose --profile core up -d
 ```
 
-3 Start the main application: booking-service, user-service
+3 Wait about 1 or 2 minutes for the 'core' completely starts, then run the main application: booking-service, user-service
 
 ```bash
-docker-compose up -d
+docker-compose --profile apps up -d
 ```
 
 ## 🔗 URLs & Services

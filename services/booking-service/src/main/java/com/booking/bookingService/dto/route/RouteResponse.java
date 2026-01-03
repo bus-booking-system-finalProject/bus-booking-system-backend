@@ -23,6 +23,9 @@ public class RouteResponse {
     private StopDto from;
     private StopDto to;
 
+    @JsonProperty("isActive")
+    private boolean active;
+
     @Data @Builder
     public static class StopDto {
         private UUID id;

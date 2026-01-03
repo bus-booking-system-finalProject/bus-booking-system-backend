@@ -104,6 +104,7 @@ services:
   # --- 3. User Service ---
   user-service:
     hostname: user-service
+    profiles: ["apps"]
     build:
       context: ./services/user-service
       dockerfile: Dockerfile.dev
@@ -128,6 +129,7 @@ services:
 
   booking-service:
     hostname: booking-service
+    profiles: ["apps"]
     build:
       context: ./services/booking-service
       dockerfile: Dockerfile.dev

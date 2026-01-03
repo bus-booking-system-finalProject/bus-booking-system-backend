@@ -205,6 +205,7 @@ public class DataInitializer implements CommandLineRunner {
                         .destination(routeData.getDestination())
                         .distanceKm(routeData.getDistance())
                         .estimatedMinutes(routeData.getMinutes())
+                        .isActive(true)
                         .build();
                 routeRepository.save(route);
                 routeCache.put(routeData.getKey(), route);
