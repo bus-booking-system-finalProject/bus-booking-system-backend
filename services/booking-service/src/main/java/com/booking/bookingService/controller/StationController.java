@@ -21,12 +21,39 @@ public class StationController {
 
     private final StationService stationService;
 
+    // Public search endpoint for stations
+    @GetMapping("/search")
+    public ResponseEntity<?> searchStations(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String city) {
+        if (city != null && !city.isEmpty()) {
+            return ResponseEntity.ok(ApiResponse.success(
+                    stationService.searchByCity(city),
+                    "Stations found successfully"));
+        }
+        if (keyword != null && !keyword.isEmpty()) {
+            return ResponseEntity.ok(ApiResponse.success(
+                    stationService.searchStations(keyword),
+                    "Stations found successfully"));
+        }
+        return ResponseEntity.badRequest().body(ApiResponse.error("Please provide keyword or city"));
+    }
+
+    // Operator search endpoint for their own stations
+    @GetMapping("/my/search")
+    public ResponseEntity<?> searchMyStations(
+            @RequestParam String keyword,
+            @CurrentOperator UUID operatorId) {
+        return ResponseEntity.ok(ApiResponse.success(
+                stationService.searchOperatorStations(keyword, operatorId),
+                "Stations found successfully"));
+    }
+
     // 1. Add @CurrentOperator UUID operatorId to arguments
     @PostMapping
     public ResponseEntity<?> createStation(
-            @Valid @RequestBody StationRequest request, 
-            @CurrentOperator UUID operatorId
-    ) {
+            @Valid @RequestBody StationRequest request,
+            @CurrentOperator UUID operatorId) {
         // 2. Pass the ID to the service
         StationResponse response = stationService.createStation(request, operatorId);
         return new ResponseEntity<>(ApiResponse.success(response, "Station created successfully"), HttpStatus.CREATED);
@@ -47,10 +74,9 @@ public class StationController {
 
     @PutMapping("/{id}")
     public ResponseEntity<?> updateStation(
-            @PathVariable UUID id, 
+            @PathVariable UUID id,
             @Valid @RequestBody StationRequest request,
-            @CurrentOperator UUID operatorId
-    ) {
+            @CurrentOperator UUID operatorId) {
         StationResponse updated = stationService.updateStation(id, request, operatorId);
         return ResponseEntity.ok(ApiResponse.success(updated, "Station updated successfully"));
     }

@@ -47,7 +47,7 @@ public class StationService {
     public StationResponse getStation(UUID stationId, UUID currentOperatorId) {
         Station station = stationRepository.findById(stationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Station not found"));
-        
+
         validateOwnership(station, currentOperatorId);
 
         return mapToResponse(station);
@@ -66,8 +66,8 @@ public class StationService {
         station.setAddress(request.getAddress());
         station.setWard(request.getWard());
         station.setCity(request.getCity());
-        
-        // Note: We DO NOT update the operator here. 
+
+        // Note: We DO NOT update the operator here.
         // A station cannot change ownership from FUTA to Kumho via this API.
 
         return mapToResponse(stationRepository.save(station));
@@ -98,5 +98,26 @@ public class StationService {
             // Throw 403 Forbidden if they try to touch another operator's data
             throw new RuntimeException("Access Denied: You do not own this station");
         }
+    }
+
+    // Fulltext search for stations (public - all stations)
+    public List<StationResponse> searchStations(String keyword) {
+        return stationRepository.searchByKeyword(keyword).stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    // Fulltext search for operator's stations
+    public List<StationResponse> searchOperatorStations(String keyword, UUID operatorId) {
+        return stationRepository.searchByKeywordAndOperatorId(keyword, operatorId).stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    // Search stations by city
+    public List<StationResponse> searchByCity(String city) {
+        return stationRepository.searchByCity(city).stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
     }
 }

@@ -34,7 +34,7 @@ public class RouteService {
 
     @Transactional
     public RouteResponse createRoute(RouteRequest request, UUID currentOperatorId) {
-       Operator operator = operatorRepository.findById(currentOperatorId)
+        Operator operator = operatorRepository.findById(currentOperatorId)
                 .orElseThrow(() -> new ResourceNotFoundException("Operator account not found"));
 
         Route route = Route.builder()
@@ -53,15 +53,15 @@ public class RouteService {
         // 1. Process Pick-up Stops
         if (request.getPickupStops() != null) {
             allStops.addAll(request.getPickupStops().stream()
-                .map(stopReq -> createRouteStopEntity(route, stopReq, StopType.PICKUP))
-                .toList());
+                    .map(stopReq -> createRouteStopEntity(route, stopReq, StopType.PICKUP))
+                    .toList());
         }
 
         // 2. Process Drop-off Stops
         if (request.getDropoffStops() != null) {
             allStops.addAll(request.getDropoffStops().stream()
-                .map(stopReq -> createRouteStopEntity(route, stopReq, StopType.DROPOFF))
-                .toList());
+                    .map(stopReq -> createRouteStopEntity(route, stopReq, StopType.DROPOFF))
+                    .toList());
         }
 
         route.setStops(allStops);
@@ -72,8 +72,8 @@ public class RouteService {
 
     public List<RouteResponse> getAllRoutes(UUID currentOperatorId) {
         return routeRepository.findAllByOperatorId(currentOperatorId).stream()
-            .map(this::mapToDto)
-            .collect(Collectors.toList());
+                .map(this::mapToDto)
+                .collect(Collectors.toList());
     }
 
     public RouteResponse getRoute(UUID id, UUID currentOperatorId) {
@@ -88,7 +88,7 @@ public class RouteService {
         // 1. Fetch original route and validate ownership
         Route oldRoute = routeRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Route not found"));
-        
+
         validateOwnership(oldRoute, currentOperatorId);
 
         // 2. Check if the route is linked to ANY trip (past or future)
@@ -111,16 +111,16 @@ public class RouteService {
             oldRoute.setEstimatedMinutes(request.getEstimatedMinutes());
 
             // Update stops using the clear/addAll pattern to handle orphanRemoval
-            oldRoute.getStops().clear(); 
-            
+            oldRoute.getStops().clear();
+
             List<RouteStop> newStops = new ArrayList<>();
             if (request.getPickupStops() != null) {
                 newStops.addAll(request.getPickupStops().stream()
-                    .map(s -> createRouteStopEntity(oldRoute, s, StopType.PICKUP)).toList());
+                        .map(s -> createRouteStopEntity(oldRoute, s, StopType.PICKUP)).toList());
             }
             if (request.getDropoffStops() != null) {
                 newStops.addAll(request.getDropoffStops().stream()
-                    .map(s -> createRouteStopEntity(oldRoute, s, StopType.DROPOFF)).toList());
+                        .map(s -> createRouteStopEntity(oldRoute, s, StopType.DROPOFF)).toList());
             }
             oldRoute.getStops().addAll(newStops);
 
@@ -130,13 +130,13 @@ public class RouteService {
 
     @Transactional
     public void deleteRoute(UUID id, UUID currentOperatorId) {
-            Route route = routeRepository.findById(id)
-                    .orElseThrow(() -> new ResourceNotFoundException("Route not found"));
-            validateOwnership(route, currentOperatorId);
-            routeRepository.delete(route);
-        }
+        Route route = routeRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Route not found"));
+        validateOwnership(route, currentOperatorId);
+        routeRepository.delete(route);
+    }
 
-        // Helper method to reduce code duplication
+    // Helper method to reduce code duplication
     private RouteStop createRouteStopEntity(Route route, RouteStopRequest stopReq, StopType type) {
         Station station = stationRepository.findById(stopReq.getStationId())
                 .orElseThrow(() -> new ResourceNotFoundException("Station not found"));
@@ -164,7 +164,7 @@ public class RouteService {
                 .filter(stop -> stop.getType() == StopType.DROPOFF)
                 .map(this::mapToStopDto)
                 .collect(Collectors.toList());
-        
+
         RouteResponse.StopDto fromDto = routeStops.stream()
                 .filter(stop -> stop.isOrigin())
                 .findFirst()
@@ -176,29 +176,49 @@ public class RouteService {
                 .findFirst()
                 .map(this::mapToStopDto)
                 .orElse(null);
-        
+
         return RouteResponse.builder()
-            .id(route.getId())
-            .details(DetailsDto.builder()
-                .name(route.getName())
-                .origin(route.getOrigin())
-                .destination(route.getDestination())
-                .distanceKm(route.getDistanceKm())
-                .estimatedMinutes(route.getEstimatedMinutes())
-                .build()
-            )
-            .pickupPoints(pickupPoints)
-            .dropoffPoints(dropoffPoints)
-            .from(fromDto)
-            .to(toDto)
-            .active(route.isActive())
-            .build();
+                .id(route.getId())
+                .details(DetailsDto.builder()
+                        .name(route.getName())
+                        .origin(route.getOrigin())
+                        .destination(route.getDestination())
+                        .distanceKm(route.getDistanceKm())
+                        .estimatedMinutes(route.getEstimatedMinutes())
+                        .build())
+                .pickupPoints(pickupPoints)
+                .dropoffPoints(dropoffPoints)
+                .from(fromDto)
+                .to(toDto)
+                .active(route.isActive())
+                .build();
     }
 
     private void validateOwnership(Route route, UUID currentOperatorId) {
         if (!route.getOperator().getId().equals(currentOperatorId)) {
             throw new RuntimeException("Access Denied: You do not own this route");
         }
+    }
+
+    // Fulltext search for routes
+    public List<RouteResponse> searchRoutes(String keyword) {
+        return routeRepository.searchActiveByKeyword(keyword).stream()
+                .map(this::mapToDto)
+                .collect(Collectors.toList());
+    }
+
+    // Fulltext search for operator's routes
+    public List<RouteResponse> searchOperatorRoutes(String keyword, UUID operatorId) {
+        return routeRepository.searchByKeywordAndOperatorId(keyword, operatorId).stream()
+                .map(this::mapToDto)
+                .collect(Collectors.toList());
+    }
+
+    // Search routes by origin and destination
+    public List<RouteResponse> searchByOriginAndDestination(String origin, String destination) {
+        return routeRepository.searchByOriginAndDestination(origin, destination).stream()
+                .map(this::mapToDto)
+                .collect(Collectors.toList());
     }
 
     private RouteResponse.StopDto mapToStopDto(RouteStop stop) {

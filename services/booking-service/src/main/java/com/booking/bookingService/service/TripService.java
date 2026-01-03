@@ -186,20 +186,79 @@ public class TripService {
                     .otherwise(root.get("originalPrice"))
                     .as(BigDecimal.class);
 
-            // 1. Origin
+            // 1. Origin - Fulltext search in route.origin AND pickup stations (name, address, ward, city)
             if (request.getOrigin() != null && !request.getOrigin().isEmpty()) {
                 String originPattern = "%" + request.getOrigin().toLowerCase() + "%";
-                predicates.add(criteriaBuilder.like(
+
+                // Search in route origin
+                Predicate routeOriginMatch = criteriaBuilder.like(
                         criteriaBuilder.lower(routeJoin.get("origin")),
-                        originPattern));
+                        originPattern);
+
+                // Search in pickup stations via RouteStop -> Station
+                var stopsJoin = routeJoin.join("stops", jakarta.persistence.criteria.JoinType.LEFT);
+                var stationJoin = stopsJoin.join("station", jakarta.persistence.criteria.JoinType.LEFT);
+
+                Predicate stationNameMatch = criteriaBuilder.like(
+                        criteriaBuilder.lower(stationJoin.get("name")),
+                        originPattern);
+                Predicate stationAddressMatch = criteriaBuilder.like(
+                        criteriaBuilder.lower(stationJoin.get("address")),
+                        originPattern);
+                Predicate stationWardMatch = criteriaBuilder.like(
+                        criteriaBuilder.lower(stationJoin.get("ward")),
+                        originPattern);
+                Predicate stationCityMatch = criteriaBuilder.like(
+                        criteriaBuilder.lower(stationJoin.get("city")),
+                        originPattern);
+
+                // Combine: route.origin OR any station field matches
+                predicates.add(criteriaBuilder.or(
+                        routeOriginMatch,
+                        stationNameMatch,
+                        stationAddressMatch,
+                        stationWardMatch,
+                        stationCityMatch));
+
+                // Make results distinct to avoid duplicates from joins
+                query.distinct(true);
             }
 
-            // 2. Destination
+            // 2. Destination - Fulltext search in route.destination AND dropoff stations
             if (request.getDestination() != null && !request.getDestination().isEmpty()) {
                 String destPattern = "%" + request.getDestination().toLowerCase() + "%";
-                predicates.add(criteriaBuilder.like(
+
+                // Search in route destination
+                Predicate routeDestMatch = criteriaBuilder.like(
                         criteriaBuilder.lower(routeJoin.get("destination")),
-                        destPattern));
+                        destPattern);
+
+                // Search in dropoff stations via RouteStop -> Station
+                var stopsJoinDest = routeJoin.join("stops", jakarta.persistence.criteria.JoinType.LEFT);
+                var stationJoinDest = stopsJoinDest.join("station", jakarta.persistence.criteria.JoinType.LEFT);
+
+                Predicate destStationNameMatch = criteriaBuilder.like(
+                        criteriaBuilder.lower(stationJoinDest.get("name")),
+                        destPattern);
+                Predicate destStationAddressMatch = criteriaBuilder.like(
+                        criteriaBuilder.lower(stationJoinDest.get("address")),
+                        destPattern);
+                Predicate destStationWardMatch = criteriaBuilder.like(
+                        criteriaBuilder.lower(stationJoinDest.get("ward")),
+                        destPattern);
+                Predicate destStationCityMatch = criteriaBuilder.like(
+                        criteriaBuilder.lower(stationJoinDest.get("city")),
+                        destPattern);
+
+                // Combine: route.destination OR any station field matches
+                predicates.add(criteriaBuilder.or(
+                        routeDestMatch,
+                        destStationNameMatch,
+                        destStationAddressMatch,
+                        destStationWardMatch,
+                        destStationCityMatch));
+
+                query.distinct(true);
             }
 
             // 4. Passenger Capacity (using new availableSeats field)
